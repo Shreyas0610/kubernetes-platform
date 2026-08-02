@@ -432,6 +432,7 @@ Target: 2-3 days.
 
 Deliverables:
 
+- kubeadm foundation files under `infra/kubeadm`.
 - 3 control-plane and 2-3 worker nodes, or a documented smaller fallback.
 - `containerd` configured.
 - `kubeadm` config committed.
@@ -447,6 +448,8 @@ Review checkpoint:
 - Can you explain what happens when a Pod is created?
 - Can you explain why etcd quorum matters?
 - Can you debug `NodeNotReady`, CoreDNS failure, and pod-to-service routing?
+
+Repo entry point: `infra/kubeadm/README.md`.
 
 ### Milestone 3: Cluster Add-ons And HTTPS Ingress
 

@@ -1,0 +1,14 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: k8s-api.example.internal:6443
+    token: replace-with-bootstrap-token
+    caCertHashes:
+      - sha256:replace-with-ca-cert-hash
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    - name: node-ip
+      value: 192.0.2.21
+

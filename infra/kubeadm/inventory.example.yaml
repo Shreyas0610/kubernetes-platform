@@ -1,0 +1,28 @@
+cluster:
+  name: kubernetes-platform
+  kubernetes_version: v1.36.0
+  pod_subnet: 10.244.0.0/16
+  service_subnet: 10.96.0.0/12
+  control_plane_endpoint: k8s-api.example.internal:6443
+
+load_balancer:
+  host: lb-01
+  address: 192.0.2.10
+  port: 6443
+
+control_plane:
+  - name: cp-01
+    address: 192.0.2.11
+  - name: cp-02
+    address: 192.0.2.12
+  - name: cp-03
+    address: 192.0.2.13
+
+workers:
+  - name: worker-01
+    address: 192.0.2.21
+  - name: worker-02
+    address: 192.0.2.22
+  - name: worker-03
+    address: 192.0.2.23
+
