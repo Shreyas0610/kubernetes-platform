@@ -22,7 +22,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -72,6 +74,50 @@ func TestReplicasForAppUsesSpecValue(t *testing.T) {
 	}
 }
 
+func TestDeploymentForAppBuildsExpectedDeployment(t *testing.T) {
+	var desired int32 = 2
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image:    "nginx:1.27",
+			Port:     80,
+			Replicas: &desired,
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add apps scheme: %v", err)
+	}
+
+	deployment, err := deploymentForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("deploymentForApp returned error: %v", err)
+	}
+
+	if deployment.Name != "demo-api" {
+		t.Fatalf("expected deployment name demo-api, got %q", deployment.Name)
+	}
+	if *deployment.Spec.Replicas != 2 {
+		t.Fatalf("expected 2 replicas, got %d", *deployment.Spec.Replicas)
+	}
+	container := deployment.Spec.Template.Spec.Containers[0]
+	if container.Image != "nginx:1.27" {
+		t.Fatalf("expected image nginx:1.27, got %q", container.Image)
+	}
+	if container.Ports[0].ContainerPort != 80 {
+		t.Fatalf("expected container port 80, got %d", container.Ports[0].ContainerPort)
+	}
+	if len(deployment.OwnerReferences) != 1 || deployment.OwnerReferences[0].Name != "demo-api" {
+		t.Fatalf("expected owner reference to demo-api, got %#v", deployment.OwnerReferences)
+	}
+}
+
 var _ = Describe("App Controller", func() {
 	Context("When reconciling a resource", func() {
 		const (
@@ -96,7 +142,10 @@ var _ = Describe("App Controller", func() {
 						Name:      resourceName,
 						Namespace: resourceNamespace,
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: platformv1alpha1.AppSpec{
+						Image: "nginx:1.27",
+						Port:  80,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -122,8 +171,6 @@ var _ = Describe("App Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

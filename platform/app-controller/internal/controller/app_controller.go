@@ -19,9 +19,14 @@ package controller
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	platformv1alpha1 "github.com/sarigeb/kubernetes-platform/platform/app-controller/api/v1alpha1"
@@ -36,6 +41,7 @@ type AppReconciler struct {
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -49,7 +55,34 @@ type AppReconciler struct {
 func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var app platformv1alpha1.App
+	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	desiredDeployment, err := deploymentForApp(&app, r.Scheme)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      desiredDeployment.Name,
+			Namespace: desiredDeployment.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrPatch(ctx, r.Client, deployment, func() error {
+		deployment.Labels = desiredDeployment.Labels
+		deployment.OwnerReferences = desiredDeployment.OwnerReferences
+		deployment.Spec = desiredDeployment.Spec
+		return nil
+	})
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -67,6 +100,39 @@ func replicasForApp(app *platformv1alpha1.App) int32 {
 		return 1
 	}
 	return *app.Spec.Replicas
+}
+
+func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv1.Deployment, error) {
+	labels := labelsForApp(app)
+	replicas := replicasForApp(app)
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Name,
+			Namespace: app.Namespace,
+			Labels:    labels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: labels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  app.Name,
+						Image: app.Spec.Image,
+						Ports: []corev1.ContainerPort{{
+							Name:          "http",
+							ContainerPort: app.Spec.Port,
+						}},
+					}},
+				},
+			},
+		},
+	}
+	if err := controllerutil.SetControllerReference(app, deployment, scheme); err != nil {
+		return nil, err
+	}
+	return deployment, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
