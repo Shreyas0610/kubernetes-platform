@@ -54,6 +54,21 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, nil
 }
 
+func labelsForApp(app *platformv1alpha1.App) map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name":       app.Name,
+		"app.kubernetes.io/managed-by": "kubernetes-platform",
+		"platform.sarige.dev/app":      app.Name,
+	}
+}
+
+func replicasForApp(app *platformv1alpha1.App) int32 {
+	if app.Spec.Replicas == nil {
+		return 1
+	}
+	return *app.Spec.Replicas
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).

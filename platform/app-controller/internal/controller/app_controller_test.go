@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,6 +30,47 @@ import (
 
 	platformv1alpha1 "github.com/sarigeb/kubernetes-platform/platform/app-controller/api/v1alpha1"
 )
+
+func TestLabelsForAppIncludesPlatformLabels(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{Name: "demo-api"},
+	}
+
+	labels := labelsForApp(app)
+
+	if labels["app.kubernetes.io/name"] != "demo-api" {
+		t.Fatalf("expected app name label demo-api, got %q", labels["app.kubernetes.io/name"])
+	}
+	if labels["app.kubernetes.io/managed-by"] != "kubernetes-platform" {
+		t.Fatalf("expected managed-by label kubernetes-platform, got %q", labels["app.kubernetes.io/managed-by"])
+	}
+	if labels["platform.sarige.dev/app"] != "demo-api" {
+		t.Fatalf("expected platform app label demo-api, got %q", labels["platform.sarige.dev/app"])
+	}
+}
+
+func TestReplicasForAppDefaultsToOne(t *testing.T) {
+	app := &platformv1alpha1.App{}
+
+	replicas := replicasForApp(app)
+
+	if replicas != 1 {
+		t.Fatalf("expected default replicas 1, got %d", replicas)
+	}
+}
+
+func TestReplicasForAppUsesSpecValue(t *testing.T) {
+	var desired int32 = 3
+	app := &platformv1alpha1.App{
+		Spec: platformv1alpha1.AppSpec{Replicas: &desired},
+	}
+
+	replicas := replicasForApp(app)
+
+	if replicas != 3 {
+		t.Fatalf("expected replicas 3, got %d", replicas)
+	}
+}
 
 var _ = Describe("App Controller", func() {
 	Context("When reconciling a resource", func() {
