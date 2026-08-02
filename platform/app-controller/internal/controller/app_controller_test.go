@@ -198,6 +198,34 @@ func TestIngressForAppBuildsExpectedIngress(t *testing.T) {
 	}
 }
 
+func TestSetAppConditionReplacesExistingCondition(t *testing.T) {
+	app := &platformv1alpha1.App{
+		Status: platformv1alpha1.AppStatus{
+			Conditions: []metav1.Condition{{
+				Type:   "Ready",
+				Status: metav1.ConditionFalse,
+				Reason: "OldReason",
+			}},
+		},
+	}
+
+	setAppCondition(app, metav1.Condition{
+		Type:   "Ready",
+		Status: metav1.ConditionTrue,
+		Reason: "Reconciled",
+	})
+
+	if len(app.Status.Conditions) != 1 {
+		t.Fatalf("expected one Ready condition, got %d", len(app.Status.Conditions))
+	}
+	if app.Status.Conditions[0].Status != metav1.ConditionTrue {
+		t.Fatalf("expected Ready=True, got %s", app.Status.Conditions[0].Status)
+	}
+	if app.Status.Conditions[0].Reason != "Reconciled" {
+		t.Fatalf("expected Reconciled reason, got %q", app.Status.Conditions[0].Reason)
+	}
+}
+
 var _ = Describe("App Controller", func() {
 	Context("When reconciling a resource", func() {
 		const (

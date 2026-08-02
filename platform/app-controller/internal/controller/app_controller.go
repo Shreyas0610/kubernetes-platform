@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -130,6 +131,36 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+
+	app.Status.Phase = "Ready"
+	app.Status.URL = ""
+	if app.Spec.Host != "" {
+		app.Status.URL = "http://" + app.Spec.Host
+	}
+	setAppCondition(&app, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		Reason:             "Reconciled",
+		Message:            "App runtime resources are reconciled",
+		ObservedGeneration: app.Generation,
+	})
+	setAppCondition(&app, metav1.Condition{
+		Type:               "Reconciling",
+		Status:             metav1.ConditionFalse,
+		Reason:             "Reconciled",
+		Message:            "Reconciliation completed",
+		ObservedGeneration: app.Generation,
+	})
+	setAppCondition(&app, metav1.Condition{
+		Type:               "Stalled",
+		Status:             metav1.ConditionFalse,
+		Reason:             "Reconciled",
+		Message:            "No reconciliation error",
+		ObservedGeneration: app.Generation,
+	})
+	if err := r.Status().Update(ctx, &app); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -240,6 +271,10 @@ func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networki
 		return nil, err
 	}
 	return ingress, nil
+}
+
+func setAppCondition(app *platformv1alpha1.App, condition metav1.Condition) {
+	meta.SetStatusCondition(&app.Status.Conditions, condition)
 }
 
 // SetupWithManager sets up the controller with the Manager.
