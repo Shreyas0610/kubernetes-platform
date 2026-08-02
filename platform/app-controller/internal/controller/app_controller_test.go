@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -154,6 +155,46 @@ func TestServiceForAppBuildsExpectedService(t *testing.T) {
 	}
 	if service.Spec.Selector["platform.sarige.dev/app"] != "demo-api" {
 		t.Fatalf("expected selector for demo-api, got %#v", service.Spec.Selector)
+	}
+}
+
+func TestIngressForAppBuildsExpectedIngress(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image: "nginx:1.27",
+			Port:  80,
+			Host:  "demo.local",
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := networkingv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add networking scheme: %v", err)
+	}
+
+	ingress, err := ingressForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("ingressForApp returned error: %v", err)
+	}
+
+	if ingress.Name != "demo-api" {
+		t.Fatalf("expected ingress name demo-api, got %q", ingress.Name)
+	}
+	if ingress.Spec.Rules[0].Host != "demo.local" {
+		t.Fatalf("expected host demo.local, got %q", ingress.Spec.Rules[0].Host)
+	}
+	path := ingress.Spec.Rules[0].HTTP.Paths[0]
+	if path.Backend.Service.Name != "demo-api" {
+		t.Fatalf("expected backend service demo-api, got %q", path.Backend.Service.Name)
+	}
+	if path.Backend.Service.Port.Number != 80 {
+		t.Fatalf("expected backend service port 80, got %d", path.Backend.Service.Port.Number)
 	}
 }
 

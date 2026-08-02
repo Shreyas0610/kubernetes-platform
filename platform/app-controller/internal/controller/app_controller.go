@@ -21,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,6 +45,7 @@ type AppReconciler struct {
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -106,6 +108,28 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	})
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if app.Spec.Host != "" {
+		desiredIngress, err := ingressForApp(&app, r.Scheme)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		ingress := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      desiredIngress.Name,
+				Namespace: desiredIngress.Namespace,
+			},
+		}
+		_, err = controllerutil.CreateOrPatch(ctx, r.Client, ingress, func() error {
+			ingress.Labels = desiredIngress.Labels
+			ingress.OwnerReferences = desiredIngress.OwnerReferences
+			ingress.Spec = desiredIngress.Spec
+			return nil
+		})
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -183,10 +207,48 @@ func serviceForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.S
 	return service, nil
 }
 
+func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networkingv1.Ingress, error) {
+	pathType := networkingv1.PathTypePrefix
+	labels := labelsForApp(app)
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Name,
+			Namespace: app.Namespace,
+			Labels:    labels,
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				Host: app.Spec.Host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Path:     "/",
+							PathType: &pathType,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: app.Name,
+									Port: networkingv1.ServiceBackendPort{Number: app.Spec.Port},
+								},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
+	if err := controllerutil.SetControllerReference(app, ingress, scheme); err != nil {
+		return nil, err
+	}
+	return ingress, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&platformv1alpha1.App{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&networkingv1.Ingress{}).
 		Named("app").
 		Complete(r)
 }
