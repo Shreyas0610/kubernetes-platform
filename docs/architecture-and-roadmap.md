@@ -377,7 +377,17 @@ Recruiter-facing README sections:
 
 ## 1-2 Week Implementation Roadmap
 
-This is intentionally aggressive. The goal for the first 1-2 weeks is a strong vertical slice: repo skeleton, working cluster foundation, HTTPS demo app, GitOps bootstrap, and the first version of the platform API/CRD. The full final platform will continue beyond this window.
+This is intentionally aggressive. The goal for the first 1-2 weeks is a strong vertical slice: repo skeleton, local controller development loop, `App` CRD/controller, HTTPS demo app path, and the foundation for GitOps. The full final platform will continue beyond this window.
+
+For momentum and recruiter signal, build the Kubernetes-native controller before the full kubeadm migration:
+
+1. Minimal local cluster with kind for fast controller development.
+2. App CRD/controller in Go.
+3. Reconcile Deployment, Service, and Ingress.
+4. Add GitHub Actions image build.
+5. Add observability/GitOps.
+6. Build kubeadm production-style cluster.
+7. Move the working platform onto the kubeadm cluster.
 
 ### Milestone 0: Project Framing And Repo Skeleton
 
@@ -394,7 +404,29 @@ Why it exists: documentation is part of the product. A recruiter should understa
 
 Thinking question: what is the smallest demo that proves you understand platform engineering, not just YAML?
 
-### Milestone 1: kubeadm Cluster Foundation
+### Milestone 1: App CRD Controller
+
+Target: 2-3 days.
+
+Deliverables:
+
+- Go Kubebuilder project under `platform/app-controller`.
+- `App` CRD v1alpha1.
+- Controller reconciles Deployment, Service, and optional Ingress.
+- Status conditions show `Ready`, `Reconciling`, and `Stalled`.
+- Tests cover resource construction and controller behavior.
+- Local demo commands documented.
+
+Why it exists: this proves the platform is Kubernetes-native, not just a pile of YAML. The CRD is the platform API; the controller is what turns desired state into real Kubernetes resources.
+
+Review checkpoint:
+
+- Why use a CRD instead of directly creating Deployments from an API server?
+- What belongs in `spec` vs `status`?
+- How does a reconciliation loop repair drift?
+- Why do owner references matter?
+
+### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.
 
@@ -408,7 +440,7 @@ Deliverables:
 - Node labels/taints documented.
 - etcd backup and restore runbook started.
 
-Why it exists: Kubernetes is a distributed control plane. You need to understand the API server, etcd, scheduler, controller-manager, kubelet, CNI, and kube-proxy/Cilium networking before building abstractions on top.
+Why it exists: Kubernetes is a distributed control plane. You need to understand the API server, etcd, scheduler, controller-manager, kubelet, CNI, and kube-proxy/Cilium networking before running your platform in a production-style environment.
 
 Review checkpoint:
 
@@ -416,7 +448,7 @@ Review checkpoint:
 - Can you explain why etcd quorum matters?
 - Can you debug `NodeNotReady`, CoreDNS failure, and pod-to-service routing?
 
-### Milestone 2: Cluster Add-ons And HTTPS Ingress
+### Milestone 3: Cluster Add-ons And HTTPS Ingress
 
 Target: 1-2 days.
 
@@ -437,7 +469,7 @@ Review checkpoint:
 - Can you explain HTTP-01 vs DNS-01 certificate validation?
 - Can you trace an HTTPS request from browser to pod?
 
-### Milestone 3: GitOps Bootstrap
+### Milestone 4: GitOps Bootstrap
 
 Target: 1 day.
 
@@ -456,28 +488,26 @@ Review checkpoint:
 - What should not be auto-synced?
 - How do you recover if cluster state drifts from Git?
 
-### Milestone 4: Platform API And App CRD
+### Milestone 5: Platform API And Metadata
 
 Target: 2-3 days.
 
 Deliverables:
 
-- `App` CRD v1alpha1.
-- Minimal `app-controller`.
-- Controller reconciles Deployment and Service.
-- Status conditions show `Ready`, `Reconciling`, and `Stalled`.
 - Platform API can create an app record and corresponding `App` CR.
 - Postgres schema for users, teams, apps, deploys, and GitHub installations.
+- API validates app creation requests before writing `App` resources.
+- API reads `App` status for deploy visibility.
 
-Why it exists: a platform is a control plane. The CRD is your contract; the controller is what makes desired state real.
+Why it exists: the controller is the Kubernetes-native runtime layer, but users still need a clean product API for teams, repositories, app creation, and deploy history.
 
 Review checkpoint:
 
-- Why use a CRD instead of directly creating Deployments from the API?
-- What belongs in `spec` vs `status`?
-- Why are finalizers needed?
+- What belongs in Postgres vs Kubernetes?
+- Why should the API create `App` resources instead of low-level Deployments?
+- How should API auth map to namespace/RBAC boundaries?
 
-### Milestone 5: GitHub-To-Image Build Path
+### Milestone 6: GitHub-To-Image Build Path
 
 Target: 1-2 days.
 
@@ -498,7 +528,7 @@ Review checkpoint:
 - Why use immutable tags or digests?
 - What permissions should GitHub Actions have?
 
-### Milestone 6: HTTPS App Routing And Tenant Isolation
+### Milestone 7: HTTPS App Routing And Tenant Isolation
 
 Target: 1-2 days.
 
