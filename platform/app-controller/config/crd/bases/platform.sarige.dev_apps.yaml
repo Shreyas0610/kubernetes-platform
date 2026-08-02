@@ -39,25 +39,35 @@ spec:
           spec:
             description: spec defines the desired state of App
             properties:
-              foo:
-                description: foo is an example field of App. Edit app_types.go to
-                  remove/update
+              host:
+                description: Host is the optional HTTP hostname exposed through Ingress.
                 type: string
+              image:
+                description: Image is the container image deployed by the platform.
+                minLength: 1
+                type: string
+              port:
+                description: Port is the container and service port exposed by the
+                  app.
+                format: int32
+                maximum: 65535
+                minimum: 1
+                type: integer
+              replicas:
+                default: 1
+                description: Replicas is the desired number of app replicas.
+                format: int32
+                minimum: 1
+                type: integer
+            required:
+            - image
+            - port
             type: object
           status:
             description: status defines the observed state of App
             properties:
               conditions:
-                description: |-
-                  conditions represent the current state of the App resource.
-                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
-
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
-
-                  The status of each condition is one of True, False, or Unknown.
+                description: Conditions describe the observed reconciliation state.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -116,6 +126,13 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              phase:
+                description: Phase is a compact summary of the app lifecycle.
+                type: string
+              url:
+                description: URL is the externally reachable URL when host routing
+                  is configured.
+                type: string
             type: object
         required:
         - spec
