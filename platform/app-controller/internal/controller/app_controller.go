@@ -24,6 +24,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,6 +43,7 @@ type AppReconciler struct {
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -78,6 +80,28 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		deployment.Labels = desiredDeployment.Labels
 		deployment.OwnerReferences = desiredDeployment.OwnerReferences
 		deployment.Spec = desiredDeployment.Spec
+		return nil
+	})
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	desiredService, err := serviceForApp(&app, r.Scheme)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      desiredService.Name,
+			Namespace: desiredService.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrPatch(ctx, r.Client, service, func() error {
+		service.Labels = desiredService.Labels
+		service.OwnerReferences = desiredService.OwnerReferences
+		service.Spec.Type = desiredService.Spec.Type
+		service.Spec.Selector = desiredService.Spec.Selector
+		service.Spec.Ports = desiredService.Spec.Ports
 		return nil
 	})
 	if err != nil {
@@ -133,6 +157,30 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 		return nil, err
 	}
 	return deployment, nil
+}
+
+func serviceForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.Service, error) {
+	labels := labelsForApp(app)
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Name,
+			Namespace: app.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: labels,
+			Ports: []corev1.ServicePort{{
+				Name:       "http",
+				Port:       app.Spec.Port,
+				TargetPort: intstr.FromString("http"),
+			}},
+		},
+	}
+	if err := controllerutil.SetControllerReference(app, service, scheme); err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

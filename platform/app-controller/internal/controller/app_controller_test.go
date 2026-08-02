@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -115,6 +116,44 @@ func TestDeploymentForAppBuildsExpectedDeployment(t *testing.T) {
 	}
 	if len(deployment.OwnerReferences) != 1 || deployment.OwnerReferences[0].Name != "demo-api" {
 		t.Fatalf("expected owner reference to demo-api, got %#v", deployment.OwnerReferences)
+	}
+}
+
+func TestServiceForAppBuildsExpectedService(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image: "nginx:1.27",
+			Port:  80,
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add core scheme: %v", err)
+	}
+
+	service, err := serviceForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("serviceForApp returned error: %v", err)
+	}
+
+	if service.Name != "demo-api" {
+		t.Fatalf("expected service name demo-api, got %q", service.Name)
+	}
+	if service.Spec.Type != corev1.ServiceTypeClusterIP {
+		t.Fatalf("expected ClusterIP service, got %q", service.Spec.Type)
+	}
+	if service.Spec.Ports[0].Port != 80 {
+		t.Fatalf("expected service port 80, got %d", service.Spec.Ports[0].Port)
+	}
+	if service.Spec.Selector["platform.sarige.dev/app"] != "demo-api" {
+		t.Fatalf("expected selector for demo-api, got %#v", service.Spec.Selector)
 	}
 }
 
