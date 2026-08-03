@@ -1,81 +1,118 @@
-# Kubernetes Platform
+# ☸️ Kubernetes Platform
 
-A production-style Kubernetes platform built from the ground up with `kubeadm`, then extended with Kubernetes-native APIs using CRDs and controllers.
+A production-style developer platform built on a self-managed Kubernetes foundation. The project combines kubeadm infrastructure with a Kubernetes-native **App** API that turns high-level application intent into Deployments, Services, Ingresses, and observable status.
 
-This project is designed to demonstrate more than application deployment. It shows how Kubernetes clusters are assembled, operated, extended, and used as the foundation for a developer platform similar in spirit to Railway or Render.
+The goal is to understand Kubernetes below the managed-service layer, then extend it using the same reconciliation model that powers Kubernetes itself.
 
-## Project Goal
+## 📦 Technologies
 
-Build a platform where users can deploy GitHub repositories into Kubernetes with a higher-level `App` API. The platform should eventually build container images, push them to a registry, provision Kubernetes resources, expose applications over HTTPS, and provide observability through Prometheus, Grafana, Loki, and OpenTelemetry.
+- Kubernetes
+- kubeadm
+- containerd
+- Go
+- Kubebuilder
+- controller-runtime
+- CustomResourceDefinitions
+- envtest and Ginkgo
+- Cilium
+- ingress-nginx
+- cert-manager
+- GitHub Actions and GHCR
+- Argo CD
+- Prometheus, Grafana, Loki, and OpenTelemetry
 
-The core engineering statement for this repo:
+Items after **envtest and Ginkgo** are roadmap components and are not yet complete.
 
-> I built a Kubernetes cluster from scratch, then built a Kubernetes-native platform on top of it using CRDs and controllers.
+## 🦄 Features
 
-## Architecture
+### Kubernetes-native App API
 
-```mermaid
+Developers declare an application through one custom resource:
+
+~~~yaml
+apiVersion: platform.sarige.dev/v1alpha1
+kind: App
+metadata:
+  name: example-app
+spec:
+  image: ghcr.io/example/app:latest
+  port: 8080
+  replicas: 2
+  host: example.local
+~~~
+
+The controller reconciles that desired state into:
+
+- A Deployment for application pods
+- A ClusterIP Service for stable networking
+- An optional Ingress for HTTP routing
+- Owner references for lifecycle management
+- Platform labels and selectors
+- Phase, URL, and Kubernetes-style status conditions
+
+The API validates image, port, and replica fields directly through CRD schema rules.
+
+### Self-managed cluster foundation
+
+The kubeadm infrastructure documents and automates:
+
+- Linux kernel, sysctl, and swap prerequisites
+- containerd installation and CRI configuration
+- kubeadm, kubelet, and kubectl installation
+- Initial control-plane bootstrap
+- Worker and additional control-plane joins
+- Cluster validation
+- etcd backup and recovery
+- Node troubleshooting
+- Secret and certificate safety practices
+
+### Controller testing
+
+The controller includes focused unit tests and an envtest-backed reconciliation test. Current tests verify:
+
+- Platform labels
+- Default and explicit replica counts
+- Deployment generation
+- Service generation
+- Ingress generation
+- Owner references
+- Status-condition replacement
+- Successful reconciliation against a test API server
+
+## 🏗️ Architecture
+
+~~~mermaid
 flowchart TD
-    Dev["Developer"] --> Repo["GitHub Repository"]
-    Repo --> CI["GitHub Actions Build Pipeline"]
-    CI --> Image["Container Image"]
-    Image --> Registry["Container Registry"]
+    A["Developer"] --> B["App custom resource"]
+    B --> C["Go controller"]
+    C --> D["Deployment"]
+    C --> E["Service"]
+    C --> F["Ingress"]
+    C --> G["Status conditions"]
+    H["Container registry"] --> D
+    F --> I["Application URL"]
+    J["kubeadm cluster"] --- C
+~~~
 
-    Dev --> AppCR["App Custom Resource"]
-    AppCR --> Controller["App Controller"]
+The target platform will add image builds, HTTPS, GitOps, observability, and tenant isolation around this reconciliation core.
 
-    Controller --> Deploy["Kubernetes Deployment"]
-    Controller --> Service["Kubernetes Service"]
-    Controller --> Ingress["Kubernetes Ingress"]
-    Controller --> Status["App Status Conditions"]
+## 👩‍🍳 The Process
 
-    Registry --> Deploy
-    Ingress --> HTTPS["HTTPS Application URL"]
+I began below the managed Kubernetes layer by documenting how Linux nodes, containerd, kubelet, kubeadm, certificates, networking prerequisites, and etcd fit together.
 
-    subgraph Cluster["kubeadm Kubernetes Cluster"]
-        Controller
-        Deploy
-        Service
-        Ingress
-        Status
-        Observability["Prometheus / Grafana / Loki / OpenTelemetry"]
-        GitOps["ArgoCD GitOps"]
-        Tenancy["Namespaces / RBAC"]
-    end
-```
+Next, I used Kubebuilder to define a domain-specific **App** resource. Instead of asking developers to manage several Kubernetes objects, the resource captures only the application intent: image, port, replica count, and optional hostname.
 
-## Current Status
+I then implemented a controller with **CreateOrPatch**, owner references, and explicit RBAC rules. The controller continuously moves the cluster toward the declared state, which makes the platform declarative and self-healing rather than a collection of deployment scripts.
 
-### Completed
+Finally, I added unit and envtest coverage before moving into real-cluster networking, HTTPS, build pipelines, GitOps, and observability.
 
-- Built the first Kubernetes-native platform API with a Go/Kubebuilder `App` CRD.
-- Implemented an `App` controller that reconciles `App` resources into `Deployment`, `Service`, and optional `Ingress` objects.
-- Added controller status reporting with phase, URL, and Kubernetes-style conditions.
-- Added focused controller tests using `envtest`.
-- Added a kubeadm infrastructure foundation with scripts, config templates, validation, and operational runbooks.
-- Initialized and pushed the private GitHub repository.
+## 📁 Repository Structure
 
-### In Progress / Planned
-
-- Execute the kubeadm setup against real control-plane and worker nodes.
-- Install and document the cluster networking layer, likely Cilium.
-- Add ingress-nginx and cert-manager for HTTPS application exposure.
-- Add GitHub Actions for image builds and pushes.
-- Add a container registry workflow, likely GHCR first.
-- Add ArgoCD for GitOps-based platform deployment.
-- Add Prometheus, Grafana, Loki, and OpenTelemetry.
-- Add namespace and RBAC isolation for multiple users.
-- Add a polished platform API and CLI or web entry point for one-click deployments.
-
-## Repository Structure
-
-```text
+~~~text
 .
 ├── docs/
 │   ├── architecture-and-roadmap.md
 │   └── superpowers/
-│       ├── plans/
-│       └── specs/
 ├── infra/
 │   └── kubeadm/
 │       ├── configs/
@@ -88,163 +125,83 @@ flowchart TD
         ├── config/
         ├── internal/
         └── test/
-```
+~~~
 
-## Main Components
+## 🚦 Running the Current Code
 
-### kubeadm Cluster Foundation
+### Run controller tests
 
-The `infra/kubeadm` directory contains the foundation for building a Kubernetes cluster without using a managed service like EKS, GKE, or AKS.
-
-It covers:
-
-- Linux node prerequisites.
-- containerd installation and configuration.
-- Kubernetes package installation.
-- First control-plane initialization.
-- Additional control-plane and worker joins.
-- Cluster validation.
-- etcd backup and restore runbooks.
-- Node troubleshooting runbooks.
-
-This part of the project exists to build operational understanding of Kubernetes itself: control plane components, kubelet, container runtime integration, networking prerequisites, certificates, etcd, and node lifecycle.
-
-### App CRD and Controller
-
-The `platform/app-controller` directory contains a Go controller built with Kubebuilder and `controller-runtime`.
-
-The current `App` API lets a user declare application intent:
-
-```yaml
-apiVersion: platform.sarige.dev/v1alpha1
-kind: App
-metadata:
-  name: example-app
-spec:
-  image: ghcr.io/example/app:latest
-  port: 8080
-  replicas: 2
-  host: example.local
-```
-
-The controller turns that intent into Kubernetes primitives:
-
-- `Deployment` for running application pods.
-- `Service` for stable in-cluster networking.
-- `Ingress` for HTTP routing when a host is provided.
-- `status` conditions so users can understand reconciliation state.
-
-This is the Kubernetes-native part of the platform. Instead of writing scripts that imperatively create resources, the platform defines a desired state API and lets a controller continuously reconcile the cluster toward that state.
-
-## Running The Current Code
-
-Run controller tests:
-
-```bash
+~~~bash
 cd platform/app-controller
 make test
-```
+~~~
 
-Inspect the sample `App` resource:
+### Inspect the sample App
 
-```bash
+~~~bash
 cat platform/app-controller/config/samples/platform_v1alpha1_app.yaml
-```
+~~~
 
-Review the kubeadm cluster setup:
+### Validate infrastructure scripts
 
-```bash
-less infra/kubeadm/README.md
-```
-
-Validate kubeadm shell scripts:
-
-```bash
+~~~bash
 bash -n infra/kubeadm/scripts/*.sh
-```
+~~~
 
-## Why This Matters
+### Review the cluster bootstrap workflow
 
-Real platform engineering teams rarely ask every developer to understand every Kubernetes object in detail. Instead, they build higher-level internal platforms that turn common deployment workflows into safe, repeatable APIs.
+~~~bash
+less infra/kubeadm/README.md
+~~~
 
-This project follows that model:
+The self-managed cluster has not yet been fully executed end to end. The current repository contains the controller implementation, tests, configuration, scripts, and operational foundation.
 
-- `kubeadm` teaches how Kubernetes is assembled and operated below the managed-service layer.
-- CRDs teach how teams extend Kubernetes with domain-specific APIs.
-- Controllers teach the reconciliation model that powers Kubernetes itself.
-- GitOps teaches how production clusters are changed through version-controlled desired state.
-- Observability teaches how teams operate distributed systems after deployment.
-- RBAC and namespaces teach how platforms isolate teams and workloads.
+## 🗺️ Roadmap
 
-The end result is not just "I deployed an app to Kubernetes." The stronger claim is: "I understand Kubernetes as both infrastructure and a programmable platform."
+### Completed
 
-## Roadmap
+- Define platform architecture and milestones
+- Create the **App** CRD
+- Implement Deployment, Service, and optional Ingress reconciliation
+- Add RBAC and owner references
+- Add phase, URL, and condition reporting
+- Add unit and envtest coverage
+- Create kubeadm bootstrap scripts, templates, validation, and runbooks
 
-### Milestone 1: Platform Architecture
+### Next
 
-- Define the target architecture.
-- Explain core technology choices.
-- Create a recruiter-facing roadmap.
+1. Bootstrap real control-plane and worker nodes.
+2. Install Cilium and validate pod networking.
+3. Add ingress-nginx and cert-manager.
+4. Deploy the controller into the cluster.
+5. Build application images with GitHub Actions and push to GHCR.
+6. Manage platform components with Argo CD.
+7. Add Prometheus, Grafana, Loki, and OpenTelemetry.
+8. Add namespaces, RBAC, quotas, and network isolation.
+9. Add a CLI or web entry point for one-command deployments.
 
-### Milestone 2: Kubernetes-Native API
+## 📚 What I Learned
 
-- Build the `App` CRD.
-- Implement the Go controller.
-- Reconcile Deployments, Services, and Ingresses.
-- Report useful status conditions.
+- How Kubernetes control-plane and node components work together.
+- How containerd and kubelet communicate through the CRI.
+- How CRDs extend the Kubernetes API with domain-specific resources.
+- How controllers reconcile observed state toward desired state.
+- Why owner references, idempotency, RBAC, and status conditions matter.
+- How to test controllers without a full production cluster.
+- How internal developer platforms reduce application deployment complexity.
+- Why platform engineering includes operations, recovery, observability, and tenancy.
 
-### Milestone 3: kubeadm Cluster
+## 💭 How It Can Be Improved
 
-- Prepare Linux nodes.
-- Install containerd and Kubernetes packages.
-- Bootstrap the first control plane.
-- Join workers.
-- Validate core cluster health.
+- Derive Ready status from actual Deployment availability.
+- Report reconciliation errors and stalled conditions.
+- Remove stale Ingress objects when a hostname is removed.
+- Add health probes, resource requests, limits, secrets, and environment variables to the App API.
+- Add end-to-end tests on a real cluster.
+- Publish a complete deployment demo and architecture screenshots.
+- Measure reconciliation latency, rollout time, and recovery behavior.
+- Add safe rollback and promotion workflows.
 
-### Milestone 4: Networking and HTTPS
+## 🔐 Safety Notes
 
-- Install a CNI.
-- Install ingress-nginx.
-- Add cert-manager.
-- Expose applications over HTTPS.
-
-### Milestone 5: Build and Registry Pipeline
-
-- Build application images from GitHub repositories.
-- Push images to a registry.
-- Connect image output to the `App` API.
-
-### Milestone 6: GitOps
-
-- Install ArgoCD.
-- Deploy platform components through GitOps.
-- Document promotion and rollback workflows.
-
-### Milestone 7: Observability
-
-- Install Prometheus and Grafana.
-- Add Loki for logs.
-- Add OpenTelemetry instrumentation and traces.
-- Build dashboards for platform and app health.
-
-### Milestone 8: Multi-Tenancy
-
-- Add namespace-per-user or namespace-per-project isolation.
-- Add RBAC policies.
-- Define safe defaults for resource requests, limits, secrets, and network access.
-
-## Technology Stack
-
-- Kubernetes
-- kubeadm
-- containerd
-- Go
-- Kubebuilder
-- controller-runtime
-- CustomResourceDefinitions
-- GitHub Actions
-- ArgoCD
-- Prometheus
-- Grafana
-- Loki
-- OpenTelemetry
+Never commit kubeadm join tokens, certificate keys, kubeconfigs, registry credentials, or application secrets. A self-managed API server should be protected with firewalls or private networking, and etcd should be backed up before upgrades or major cluster changes.
