@@ -53,6 +53,7 @@ flowchart TD
 - Added controller status reporting with phase, URL, and Kubernetes-style conditions.
 - Added focused controller tests using `envtest`.
 - Added a kubeadm infrastructure foundation with scripts, config templates, validation, and operational runbooks.
+- Added a local `kind` workflow for validating the `App` CRD/controller before moving to the kubeadm cluster.
 - Initialized and pushed the private GitHub repository.
 
 ### In Progress / Planned
@@ -77,6 +78,8 @@ flowchart TD
 │       ├── plans/
 │       └── specs/
 ├── infra/
+│   ├── kind/
+│   │   └── scripts/
 │   └── kubeadm/
 │       ├── configs/
 │       ├── runbooks/
@@ -155,6 +158,12 @@ Review the kubeadm cluster setup:
 
 ```bash
 less infra/kubeadm/README.md
+```
+
+Run the local controller demo against kind:
+
+```bash
+less infra/kind/README.md
 ```
 
 Validate kubeadm shell scripts:
