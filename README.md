@@ -233,18 +233,6 @@ The end result is not just "I deployed an app to Kubernetes." The stronger claim
 - Add RBAC policies.
 - Define safe defaults for resource requests, limits, secrets, and network access.
 
-## Interview Topics This Project Supports
-
-- How kubeadm bootstraps a Kubernetes control plane.
-- Why Kubernetes uses declarative APIs and reconciliation.
-- How CRDs extend the Kubernetes API server.
-- How controllers differ from scripts and cron jobs.
-- How Deployments, Services, and Ingresses fit together.
-- How GitOps changes production deployment workflows.
-- How observability changes incident response.
-- How RBAC and namespaces support multi-tenant platforms.
-- How real platform teams abstract Kubernetes for application developers.
-
 ## Technology Stack
 
 - Kubernetes
@@ -260,7 +248,3 @@ The end result is not just "I deployed an app to Kubernetes." The stronger claim
 - Grafana
 - Loki
 - OpenTelemetry
-
-## Honest Project Boundary
-
-This repository is being built milestone by milestone. The current implementation includes the first working platform controller and the kubeadm cluster foundation. Some production platform features are intentionally still on the roadmap so the project can show clear engineering progression instead of a single unexplained final state.
