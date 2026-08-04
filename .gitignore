@@ -1,6 +1,50 @@
+# OS and editor files
 .DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build and test output
 bin/
 dist/
 coverage/
 *.log
 
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+*.local
+inventory.yaml
+infra/kubeadm/configs/*-local.yaml
+
+# Kubernetes credentials and generated configuration
+.kube/
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+admin.conf
+super-admin.conf
+
+# Secrets, certificates, and private keys
+*.key
+*.pem
+*.p12
+*.pfx
+*.token
+secrets.yaml
+secret.yaml
+*-secrets.yaml
+*-secret.yaml
+
+# Terraform and infrastructure state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Local data and backups
+data/
+backups/
+*.bak
