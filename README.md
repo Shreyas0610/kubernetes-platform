@@ -114,6 +114,8 @@ Finally, I added unit and envtest coverage before moving into real-cluster netwo
 │   ├── architecture-and-roadmap.md
 │   └── superpowers/
 ├── infra/
+│   ├── kind/
+│   │   └── scripts/
 │   └── kubeadm/
 │       ├── configs/
 │       ├── runbooks/
@@ -148,6 +150,12 @@ cat platform/app-controller/config/samples/platform_v1alpha1_app.yaml
 bash -n infra/kubeadm/scripts/*.sh
 ~~~
 
+### Run the local kind controller demo
+
+~~~bash
+less infra/kind/README.md
+~~~
+
 ### Review the cluster bootstrap workflow
 
 ~~~bash
@@ -167,6 +175,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Add phase, URL, and condition reporting
 - Add unit and envtest coverage
 - Create kubeadm bootstrap scripts, templates, validation, and runbooks
+- Add a local kind workflow for validating the App CRD/controller
 
 ### Next
 

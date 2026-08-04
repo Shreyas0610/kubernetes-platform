@@ -426,6 +426,28 @@ Review checkpoint:
 - How does a reconciliation loop repair drift?
 - Why do owner references matter?
 
+Repo entry point: `platform/app-controller/README.md`.
+
+### Milestone 1.5: Local kind Controller Demo
+
+Target: half day.
+
+Deliverables:
+
+- Disposable kind cluster config under `infra/kind`.
+- Scripts to create the cluster, install CRDs, run the controller locally, apply a sample `App`, and validate generated resources.
+- Documentation that explains the local development loop and its production limitations.
+
+Why it exists: controller work needs a fast feedback loop. kind lets you test the Kubernetes API contract locally before deploying the same controller onto the kubeadm-built cluster.
+
+Review checkpoint:
+
+- Why run the controller locally during development?
+- What does this demo prove, and what does it intentionally not prove?
+- Why is creating an Ingress object different from routing real HTTPS traffic?
+
+Repo entry point: `infra/kind/README.md`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.
