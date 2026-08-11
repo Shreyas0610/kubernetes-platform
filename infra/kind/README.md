@@ -34,6 +34,8 @@ brew install kind kubectl go
 
 ## Demo Flow
 
+### Local Controller Development
+
 From the repository root:
 
 ```bash
@@ -53,6 +55,30 @@ Apply the sample `App` from a second terminal:
 ./infra/kind/scripts/03-apply-sample-app.sh
 ./infra/kind/scripts/04-validate-app.sh
 ```
+
+This path runs the controller from your host machine. It is the fastest loop while editing controller code.
+
+### In-Cluster Controller Deployment
+
+After the local loop works, deploy the controller into kind as a real Kubernetes workload:
+
+```bash
+./infra/kind/scripts/05-build-load-controller.sh
+./infra/kind/scripts/06-deploy-controller.sh
+./infra/kind/scripts/07-validate-controller-deployment.sh
+```
+
+This path builds `app-controller:kind`, loads it into the kind node, deploys the Kubebuilder manifests, and validates that a sample `App` reconciles without `make run`.
+
+## Latest Validation
+
+Last verified local runtime path:
+
+- kind cluster `kubernetes-platform` created successfully.
+- `app-controller:kind` image loaded into the kind control-plane node.
+- `app-controller-controller-manager` Deployment rolled out in `app-controller-system`.
+- `App/demo-api` reconciled into `Deployment/demo-api`, `Service/demo-api`, and `Ingress/demo-api`.
+- `Deployment/demo-api` rolled out successfully.
 
 ## Expected Resources
 
@@ -87,6 +113,16 @@ During controller development, the tightest loop is:
 5. Inspect reconciled resources.
 
 Later, the controller will be built into an image and deployed into the cluster through GitOps. That is a different milestone.
+
+## Why The Controller Runs In-Cluster
+
+A production controller is itself a Kubernetes workload. Running it in-cluster proves:
+
+- The controller image can be built and shipped.
+- RBAC permissions are sufficient.
+- The Deployment, ServiceAccount, and leader election configuration work.
+- Health and readiness probes are wired.
+- Reconciliation does not depend on a developer terminal staying open.
 
 ## Production Tradeoffs
 

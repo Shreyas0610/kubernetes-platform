@@ -48,3 +48,6 @@ secret.yaml
 data/
 backups/
 *.bak
+
+# Local Codex scheduling helpers
+.scheduled-tasks/

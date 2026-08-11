@@ -448,6 +448,29 @@ Review checkpoint:
 
 Repo entry point: `infra/kind/README.md`.
 
+### Milestone 1.6: In-Cluster Controller Deployment
+
+Target: half day.
+
+Deliverables:
+
+- Build the controller image locally.
+- Load the image into the kind cluster.
+- Deploy the controller using the Kubebuilder manifests.
+- Validate that the controller Deployment becomes available.
+- Apply a sample `App` and verify reconciliation without `make run`.
+- Runtime validation completed: controller Deployment and sample `demo-api` Deployment both rolled out in kind.
+
+Why it exists: production controllers run inside Kubernetes. This milestone proves the controller can operate with real in-cluster RBAC, leader election, health probes, and image packaging.
+
+Review checkpoint:
+
+- Why should a controller run in-cluster in production?
+- Why use a non-`latest` image tag in kind?
+- What RBAC permissions does this controller need?
+
+Repo entry point: `infra/kind/README.md`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.

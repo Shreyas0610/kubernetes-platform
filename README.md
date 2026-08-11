@@ -156,6 +156,13 @@ bash -n infra/kubeadm/scripts/*.sh
 less infra/kind/README.md
 ~~~
 
+Latest local runtime validation:
+
+- kind cluster `kubernetes-platform` created successfully.
+- Controller image `app-controller:kind` built and loaded into kind.
+- `app-controller-controller-manager` rolled out in `app-controller-system`.
+- Sample `App/demo-api` reconciled into a rolled-out Deployment, ClusterIP Service, and Ingress.
+
 ### Review the cluster bootstrap workflow
 
 ~~~bash
@@ -176,6 +183,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Add unit and envtest coverage
 - Create kubeadm bootstrap scripts, templates, validation, and runbooks
 - Add a local kind workflow for validating the App CRD/controller
+- Deploy the controller into kind as an in-cluster Kubernetes workload
 
 ### Next
 
