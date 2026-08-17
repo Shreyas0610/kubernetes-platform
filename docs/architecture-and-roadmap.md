@@ -471,6 +471,27 @@ Review checkpoint:
 
 Repo entry point: `infra/kind/README.md`.
 
+### Milestone 1.7: HTTP Routing Through ingress-nginx
+
+Target: half day.
+
+Deliverables:
+
+- ingress-nginx installed into the kind cluster.
+- App controller generates Ingresses with `ingressClassName: nginx`.
+- Validation checks controller readiness, app rollout, Service endpoints, Ingress host/class, and HTTP response.
+- `curl -H 'Host: demo.local' http://localhost:8080/` reaches the sample nginx app.
+
+Why it exists: an Ingress object is desired routing state; an ingress controller is the proxy that makes that state real. This milestone proves host-based HTTP routing before adding TLS.
+
+Review checkpoint:
+
+- What is the difference between an Ingress resource and an ingress controller?
+- Why does kind need host port mappings for local HTTP traffic?
+- What does a 404 vs 503 from ingress-nginx usually mean?
+
+Repo entry point: `infra/kind/README.md`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.

@@ -189,6 +189,9 @@ func TestIngressForAppBuildsExpectedIngress(t *testing.T) {
 	if ingress.Spec.Rules[0].Host != "demo.local" {
 		t.Fatalf("expected host demo.local, got %q", ingress.Spec.Rules[0].Host)
 	}
+	if ingress.Spec.IngressClassName == nil || *ingress.Spec.IngressClassName != "nginx" {
+		t.Fatalf("expected ingress class nginx, got %v", ingress.Spec.IngressClassName)
+	}
 	path := ingress.Spec.Rules[0].HTTP.Paths[0]
 	if path.Backend.Service.Name != "demo-api" {
 		t.Fatalf("expected backend service demo-api, got %q", path.Backend.Service.Name)
