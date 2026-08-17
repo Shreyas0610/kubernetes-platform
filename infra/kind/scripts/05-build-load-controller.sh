@@ -2,8 +2,9 @@
 set -euo pipefail
 
 CLUSTER_NAME="${CLUSTER_NAME:-kubernetes-platform}"
-IMG="${IMG:-app-controller:kind}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+DEFAULT_TAG="$(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
+IMG="${IMG:-app-controller:kind-${DEFAULT_TAG}}"
 
 require_command() {
   local name="$1"

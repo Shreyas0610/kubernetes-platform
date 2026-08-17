@@ -240,6 +240,7 @@ func serviceForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.S
 
 func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networkingv1.Ingress, error) {
 	pathType := networkingv1.PathTypePrefix
+	ingressClassName := "nginx"
 	labels := labelsForApp(app)
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -248,6 +249,7 @@ func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networki
 			Labels:    labels,
 		},
 		Spec: networkingv1.IngressSpec{
+			IngressClassName: &ingressClassName,
 			Rules: []networkingv1.IngressRule{{
 				Host: app.Spec.Host,
 				IngressRuleValue: networkingv1.IngressRuleValue{

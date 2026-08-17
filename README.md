@@ -184,12 +184,13 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Create kubeadm bootstrap scripts, templates, validation, and runbooks
 - Add a local kind workflow for validating the App CRD/controller
 - Deploy the controller into kind as an in-cluster Kubernetes workload
+- Add scripts and docs for HTTP routing through ingress-nginx in kind
 
 ### Next
 
 1. Bootstrap real control-plane and worker nodes.
 2. Install Cilium and validate pod networking.
-3. Add ingress-nginx and cert-manager.
+3. Add cert-manager and local HTTPS validation.
 4. Deploy the controller into the cluster.
 5. Build application images with GitHub Actions and push to GHCR.
 6. Manage platform components with Argo CD.

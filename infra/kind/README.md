@@ -68,7 +68,29 @@ After the local loop works, deploy the controller into kind as a real Kubernetes
 ./infra/kind/scripts/07-validate-controller-deployment.sh
 ```
 
-This path builds `app-controller:kind`, loads it into the kind node, deploys the Kubebuilder manifests, and validates that a sample `App` reconciles without `make run`.
+This path builds a git-SHA-tagged local controller image, loads it into the kind node, deploys the Kubebuilder manifests, and validates that a sample `App` reconciles without `make run`.
+
+### HTTP Routing Through ingress-nginx
+
+After the controller is running in-cluster, install ingress-nginx and validate host-based HTTP routing:
+
+```bash
+./infra/kind/scripts/08-install-ingress-nginx.sh
+./infra/kind/scripts/09-validate-http-routing.sh
+```
+
+This validates the full request path:
+
+```text
+curl -H 'Host: demo.local' http://localhost:8080/
+-> kind host port mapping
+-> ingress-nginx controller
+-> Ingress/demo-api
+-> Service/demo-api
+-> nginx Pod
+```
+
+An `Ingress` object is only desired routing state. The ingress controller is the running proxy that watches those objects and implements the routing rules. Without ingress-nginx, `Ingress/demo-api` can exist but no HTTP traffic will be routed.
 
 ## Latest Validation
 
@@ -128,9 +150,15 @@ A production controller is itself a Kubernetes workload. Running it in-cluster p
 
 This local setup intentionally skips several production concerns:
 
-- No ingress controller is installed yet, so the Ingress object is created but traffic is not routed.
 - No TLS certificates are issued yet.
 - No namespace/RBAC tenant isolation is installed yet.
 - No registry or build pipeline is involved yet.
 
-Those belong in later milestones. This milestone focuses on proving the CRD/controller contract.
+HTTPS, tenant isolation, and build pipelines belong in later milestones. This milestone focuses on proving HTTP routing through an ingress controller.
+
+## Troubleshooting HTTP Routing
+
+- `connection refused` on `localhost:8080`: the kind cluster is missing host port mapping or ingress-nginx is not ready.
+- HTTP `404`: the Host header or Ingress rule does not match.
+- HTTP `503`: the Service has no ready endpoints.
+- Ingress ignored: verify `Ingress/demo-api` has `ingressClassName: nginx` and `IngressClass/nginx` exists.
