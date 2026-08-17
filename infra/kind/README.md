@@ -68,7 +68,7 @@ After the local loop works, deploy the controller into kind as a real Kubernetes
 ./infra/kind/scripts/07-validate-controller-deployment.sh
 ```
 
-This path builds `app-controller:kind`, loads it into the kind node, deploys the Kubebuilder manifests, and validates that a sample `App` reconciles without `make run`.
+This path builds a git-SHA-tagged local controller image, loads it into the kind node, deploys the Kubebuilder manifests, and validates that a sample `App` reconciles without `make run`.
 
 ### HTTP Routing Through ingress-nginx
 

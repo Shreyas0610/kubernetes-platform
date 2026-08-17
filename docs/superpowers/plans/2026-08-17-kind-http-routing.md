@@ -4,7 +4,7 @@
 
 **Goal:** Install ingress-nginx in kind and validate HTTP routing from `localhost:8080` to `App/demo-api`.
 
-**Architecture:** The App controller creates `Ingress/demo-api` with `ingressClassName: nginx`. ingress-nginx watches that Ingress and routes host-header traffic from the kind node port mapping to `Service/demo-api` and then to nginx pods.
+**Architecture:** The App controller creates `Ingress/demo-api` with `ingressClassName: nginx`. ingress-nginx watches that Ingress and routes host-header traffic from the kind node port mapping to `Service/demo-api` and then to nginx pods. Local controller images use git-SHA tags so kind redeploys do not accidentally reuse an old image.
 
 **Tech Stack:** Kubernetes, kind, ingress-nginx, Bash, curl, Go, controller-runtime.
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMG="${IMG:-app-controller:kind}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+DEFAULT_TAG="$(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
+IMG="${IMG:-app-controller:kind-${DEFAULT_TAG}}"
 KUSTOMIZATION="${REPO_ROOT}/platform/app-controller/config/manager/kustomization.yaml"
 BACKUP="$(mktemp)"
 
