@@ -162,6 +162,7 @@ Latest local runtime validation:
 - Controller image `app-controller:kind` built and loaded into kind.
 - `app-controller-controller-manager` rolled out in `app-controller-system`.
 - Sample `App/demo-api` reconciled into a rolled-out Deployment, ClusterIP Service, and Ingress.
+- HTTP routing through ingress-nginx validated locally.
 
 ### Review the cluster bootstrap workflow
 
@@ -185,18 +186,19 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Add a local kind workflow for validating the App CRD/controller
 - Deploy the controller into kind as an in-cluster Kubernetes workload
 - Add scripts and docs for HTTP routing through ingress-nginx in kind
+- Add `spec.tls` support plus cert-manager-compatible Ingress TLS reconciliation
+- Add scripts and docs for local HTTPS validation through cert-manager
 
 ### Next
 
 1. Bootstrap real control-plane and worker nodes.
 2. Install Cilium and validate pod networking.
-3. Add cert-manager and local HTTPS validation.
-4. Deploy the controller into the cluster.
-5. Build application images with GitHub Actions and push to GHCR.
-6. Manage platform components with Argo CD.
-7. Add Prometheus, Grafana, Loki, and OpenTelemetry.
-8. Add namespaces, RBAC, quotas, and network isolation.
-9. Add a CLI or web entry point for one-command deployments.
+3. Deploy the controller into the kubeadm cluster.
+4. Build application images with GitHub Actions and push to GHCR.
+5. Manage platform components with Argo CD.
+6. Add Prometheus, Grafana, Loki, and OpenTelemetry.
+7. Add namespaces, RBAC, quotas, and network isolation.
+8. Add a CLI or web entry point for one-command deployments.
 
 ## 📚 What I Learned
 
@@ -204,6 +206,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - How containerd and kubelet communicate through the CRI.
 - How CRDs extend the Kubernetes API with domain-specific resources.
 - How controllers reconcile observed state toward desired state.
+- How ingress-nginx and cert-manager work together to expose HTTPS applications.
 - Why owner references, idempotency, RBAC, and status conditions matter.
 - How to test controllers without a full production cluster.
 - How internal developer platforms reduce application deployment complexity.

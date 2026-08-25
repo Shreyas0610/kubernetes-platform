@@ -59,6 +59,10 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              tls:
+                description: TLS enables HTTPS routing for Host through cert-manager-managed
+                  Ingress TLS.
+                type: boolean
             required:
             - image
             - port

@@ -201,6 +201,61 @@ func TestIngressForAppBuildsExpectedIngress(t *testing.T) {
 	}
 }
 
+func TestIngressForAppAddsCertManagerTLSWhenEnabled(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image: "nginx:1.27",
+			Port:  80,
+			Host:  "demo.local",
+			TLS:   true,
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := networkingv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add networking scheme: %v", err)
+	}
+
+	ingress, err := ingressForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("ingressForApp returned error: %v", err)
+	}
+
+	if ingress.Annotations["cert-manager.io/cluster-issuer"] != "platform-local-selfsigned" {
+		t.Fatalf("expected cert-manager cluster issuer annotation, got %#v", ingress.Annotations)
+	}
+	if len(ingress.Spec.TLS) != 1 {
+		t.Fatalf("expected one TLS entry, got %d", len(ingress.Spec.TLS))
+	}
+	if ingress.Spec.TLS[0].SecretName != "demo-api-tls" {
+		t.Fatalf("expected TLS secret demo-api-tls, got %q", ingress.Spec.TLS[0].SecretName)
+	}
+	if len(ingress.Spec.TLS[0].Hosts) != 1 || ingress.Spec.TLS[0].Hosts[0] != "demo.local" {
+		t.Fatalf("expected TLS host demo.local, got %#v", ingress.Spec.TLS[0].Hosts)
+	}
+}
+
+func TestURLForAppUsesHTTPSWhenTLSEnabled(t *testing.T) {
+	app := &platformv1alpha1.App{
+		Spec: platformv1alpha1.AppSpec{
+			Host: "demo.local",
+			TLS:  true,
+		},
+	}
+
+	url := urlForApp(app)
+
+	if url != "https://demo.local" {
+		t.Fatalf("expected https URL, got %q", url)
+	}
+}
+
 func TestSetAppConditionReplacesExistingCondition(t *testing.T) {
 	app := &platformv1alpha1.App{
 		Status: platformv1alpha1.AppStatus{

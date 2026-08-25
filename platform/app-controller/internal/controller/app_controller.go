@@ -35,6 +35,12 @@ import (
 	platformv1alpha1 "github.com/sarigeb/kubernetes-platform/platform/app-controller/api/v1alpha1"
 )
 
+const (
+	certManagerClusterIssuerAnnotation = "cert-manager.io/cluster-issuer"
+	localClusterIssuerName             = "platform-local-selfsigned"
+	nginxIngressClassName              = "nginx"
+)
+
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
@@ -123,6 +129,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			},
 		}
 		_, err = controllerutil.CreateOrPatch(ctx, r.Client, ingress, func() error {
+			ingress.Annotations = desiredIngress.Annotations
 			ingress.Labels = desiredIngress.Labels
 			ingress.OwnerReferences = desiredIngress.OwnerReferences
 			ingress.Spec = desiredIngress.Spec
@@ -134,10 +141,7 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	app.Status.Phase = "Ready"
-	app.Status.URL = ""
-	if app.Spec.Host != "" {
-		app.Status.URL = "http://" + app.Spec.Host
-	}
+	app.Status.URL = urlForApp(&app)
 	setAppCondition(&app, metav1.Condition{
 		Type:               "Ready",
 		Status:             metav1.ConditionTrue,
@@ -240,7 +244,7 @@ func serviceForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.S
 
 func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networkingv1.Ingress, error) {
 	pathType := networkingv1.PathTypePrefix
-	ingressClassName := "nginx"
+	ingressClassName := nginxIngressClassName
 	labels := labelsForApp(app)
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -269,10 +273,29 @@ func ingressForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*networki
 			}},
 		},
 	}
+	if app.Spec.TLS {
+		ingress.Annotations = map[string]string{
+			certManagerClusterIssuerAnnotation: localClusterIssuerName,
+		}
+		ingress.Spec.TLS = []networkingv1.IngressTLS{{
+			Hosts:      []string{app.Spec.Host},
+			SecretName: app.Name + "-tls",
+		}}
+	}
 	if err := controllerutil.SetControllerReference(app, ingress, scheme); err != nil {
 		return nil, err
 	}
 	return ingress, nil
+}
+
+func urlForApp(app *platformv1alpha1.App) string {
+	if app.Spec.Host == "" {
+		return ""
+	}
+	if app.Spec.TLS {
+		return "https://" + app.Spec.Host
+	}
+	return "http://" + app.Spec.Host
 }
 
 func setAppCondition(app *platformv1alpha1.App, condition metav1.Condition) {

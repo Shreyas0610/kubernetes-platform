@@ -10,3 +10,4 @@ spec:
   port: 80
   replicas: 2
   host: demo.local
+  tls: true

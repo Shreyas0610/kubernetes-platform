@@ -42,6 +42,10 @@ type AppSpec struct {
 	// Host is the optional HTTP hostname exposed through Ingress.
 	// +optional
 	Host string `json:"host,omitempty"`
+
+	// TLS enables HTTPS routing for Host through cert-manager-managed Ingress TLS.
+	// +optional
+	TLS bool `json:"tls,omitempty"`
 }
 
 // AppStatus defines the observed state of App.

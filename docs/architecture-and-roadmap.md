@@ -492,6 +492,30 @@ Review checkpoint:
 
 Repo entry point: `infra/kind/README.md`.
 
+### Milestone 1.8: Local HTTPS Through cert-manager
+
+Target: half day.
+
+Deliverables:
+
+- `App.spec.tls` added to the CRD API.
+- Controller generates cert-manager-compatible Ingress TLS configuration.
+- cert-manager installed into kind.
+- Local self-signed `ClusterIssuer/platform-local-selfsigned` created.
+- Validation checks Certificate readiness, TLS Secret creation, Ingress TLS config, and HTTPS response.
+- `curl --insecure -H 'Host: demo.local' https://localhost:8443/` reaches the sample nginx app.
+
+Why it exists: HTTPS is not just an Ingress field. A production platform needs automated certificate lifecycle management. cert-manager watches Kubernetes resources, requests certificates from an issuer, stores certificate material in Secrets, and renews certificates before expiry.
+
+Review checkpoint:
+
+- What role does cert-manager play compared with ingress-nginx?
+- Why is a self-signed issuer acceptable locally but not for public production traffic?
+- How does an Ingress annotation become a Certificate and then a Secret?
+- Why should the platform API expose `spec.tls` instead of asking users to author Ingress YAML?
+
+Repo entry point: `infra/kind/README.md`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.
