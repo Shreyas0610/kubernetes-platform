@@ -72,6 +72,22 @@ kubectl rollout status deployment/demo-api --timeout=120s
 kubectl wait certificate demo-api-tls --for=condition=Ready --timeout=180s
 kubectl get secret demo-api-tls >/dev/null
 
+for attempt in $(seq 1 30); do
+  phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
+  ready_status="$(kubectl get app demo-api -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+  if [ "${phase}" = "Ready" ] && [ "${ready_status}" = "True" ]; then
+    echo "App/demo-api status validated: phase=Ready, Ready=True."
+    break
+  fi
+  if [ "${attempt}" = "30" ]; then
+    echo "App/demo-api did not report Ready after the Deployment rolled out." >&2
+    kubectl get app demo-api -o yaml >&2
+    exit 1
+  fi
+  echo "Waiting for App/demo-api status to report Ready (${attempt}/30)."
+  sleep 2
+done
+
 actual_host="$(kubectl get ingress demo-api -o jsonpath='{.spec.rules[0].host}')"
 if [ "${actual_host}" != "${HOST}" ]; then
   echo "Ingress/demo-api host mismatch: expected '${HOST}', got '${actual_host}'." >&2

@@ -134,6 +134,7 @@ Last verified local runtime path:
 - `App/demo-api` reconciled into `Deployment/demo-api`, `Service/demo-api`, and `Ingress/demo-api`.
 - `Deployment/demo-api` rolled out successfully.
 - HTTP routing through ingress-nginx reached the sample nginx app.
+- `App/demo-api` status reported `phase=Ready` and `Ready=True` after Deployment availability.
 
 ## Expected Resources
 
@@ -144,6 +145,8 @@ The sample creates an `App` named `demo-api`. The controller should reconcile:
 - `Ingress/demo-api`
 - `Certificate/demo-api-tls` and `Secret/demo-api-tls` when cert-manager is installed
 - `App/demo-api` status conditions
+
+The controller reports `Ready=True` only after the generated Deployment has the desired number of available replicas. Before that, the app should be `Reconciling`; if Kubernetes reports `ProgressDeadlineExceeded`, the app should become `Stalled`.
 
 Inspect the app:
 

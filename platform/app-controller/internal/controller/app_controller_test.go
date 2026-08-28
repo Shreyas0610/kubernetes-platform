@@ -284,6 +284,89 @@ func TestSetAppConditionReplacesExistingCondition(t *testing.T) {
 	}
 }
 
+func TestRuntimeStatusReadyWhenDeploymentHasDesiredAvailableReplicas(t *testing.T) {
+	var desired int32 = 2
+	app := &platformv1alpha1.App{
+		Spec: platformv1alpha1.AppSpec{Replicas: &desired},
+	}
+	deployment := &appsv1.Deployment{
+		Status: appsv1.DeploymentStatus{AvailableReplicas: 2},
+	}
+
+	status := runtimeStatusForApp(app, deployment)
+
+	if status.phase != "Ready" {
+		t.Fatalf("expected Ready phase, got %q", status.phase)
+	}
+	assertCondition(t, status.conditions, "Ready", metav1.ConditionTrue, "Available")
+	assertCondition(t, status.conditions, "Reconciling", metav1.ConditionFalse, "Available")
+	assertCondition(t, status.conditions, "Stalled", metav1.ConditionFalse, "Available")
+}
+
+func TestRuntimeStatusReconcilingWhenDeploymentIsStillRollingOut(t *testing.T) {
+	var desired int32 = 3
+	app := &platformv1alpha1.App{
+		Spec: platformv1alpha1.AppSpec{Replicas: &desired},
+	}
+	deployment := &appsv1.Deployment{
+		Status: appsv1.DeploymentStatus{AvailableReplicas: 1},
+	}
+
+	status := runtimeStatusForApp(app, deployment)
+
+	if status.phase != "Reconciling" {
+		t.Fatalf("expected Reconciling phase, got %q", status.phase)
+	}
+	assertCondition(t, status.conditions, "Ready", metav1.ConditionFalse, "WaitingForDeployment")
+	assertCondition(t, status.conditions, "Reconciling", metav1.ConditionTrue, "WaitingForDeployment")
+	assertCondition(t, status.conditions, "Stalled", metav1.ConditionFalse, "WaitingForDeployment")
+}
+
+func TestRuntimeStatusStalledWhenDeploymentProgressDeadlineExceeded(t *testing.T) {
+	app := &platformv1alpha1.App{}
+	deployment := &appsv1.Deployment{
+		Status: appsv1.DeploymentStatus{
+			Conditions: []appsv1.DeploymentCondition{{
+				Type:   appsv1.DeploymentProgressing,
+				Status: corev1.ConditionFalse,
+				Reason: "ProgressDeadlineExceeded",
+			}},
+		},
+	}
+
+	status := runtimeStatusForApp(app, deployment)
+
+	if status.phase != "Stalled" {
+		t.Fatalf("expected Stalled phase, got %q", status.phase)
+	}
+	assertCondition(t, status.conditions, "Ready", metav1.ConditionFalse, "ProgressDeadlineExceeded")
+	assertCondition(t, status.conditions, "Reconciling", metav1.ConditionFalse, "ProgressDeadlineExceeded")
+	assertCondition(t, status.conditions, "Stalled", metav1.ConditionTrue, "ProgressDeadlineExceeded")
+}
+
+func assertCondition(t *testing.T, conditions []metav1.Condition, conditionType string, status metav1.ConditionStatus, reason string) {
+	t.Helper()
+	condition := findCondition(conditions, conditionType)
+	if condition == nil {
+		t.Fatalf("expected condition %q, got %#v", conditionType, conditions)
+	}
+	if condition.Status != status {
+		t.Fatalf("expected %s=%s, got %s", conditionType, status, condition.Status)
+	}
+	if condition.Reason != reason {
+		t.Fatalf("expected %s reason %q, got %q", conditionType, reason, condition.Reason)
+	}
+}
+
+func findCondition(conditions []metav1.Condition, conditionType string) *metav1.Condition {
+	for i := range conditions {
+		if conditions[i].Type == conditionType {
+			return &conditions[i]
+		}
+	}
+	return nil
+}
+
 var _ = Describe("App Controller", func() {
 	Context("When reconciling a resource", func() {
 		const (

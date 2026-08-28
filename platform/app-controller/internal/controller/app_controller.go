@@ -43,6 +43,11 @@ const (
 	nginxIngressClassName              = "nginx"
 )
 
+type appRuntimeStatus struct {
+	phase      string
+	conditions []metav1.Condition
+}
+
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
@@ -155,32 +160,65 @@ func (r *AppReconciler) updateReadyStatus(ctx context.Context, name types.Namesp
 		if err := r.Get(ctx, name, &app); err != nil {
 			return err
 		}
+		var deployment appsv1.Deployment
+		if err := r.Get(ctx, name, &deployment); err != nil {
+			return err
+		}
 
-		app.Status.Phase = "Ready"
+		runtimeStatus := runtimeStatusForApp(&app, &deployment)
+		app.Status.Phase = runtimeStatus.phase
 		app.Status.URL = urlForApp(&app)
-		setAppCondition(&app, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			Reason:             "Reconciled",
-			Message:            "App runtime resources are reconciled",
-			ObservedGeneration: app.Generation,
-		})
-		setAppCondition(&app, metav1.Condition{
-			Type:               "Reconciling",
-			Status:             metav1.ConditionFalse,
-			Reason:             "Reconciled",
-			Message:            "Reconciliation completed",
-			ObservedGeneration: app.Generation,
-		})
-		setAppCondition(&app, metav1.Condition{
-			Type:               "Stalled",
-			Status:             metav1.ConditionFalse,
-			Reason:             "Reconciled",
-			Message:            "No reconciliation error",
-			ObservedGeneration: app.Generation,
-		})
+		for _, condition := range runtimeStatus.conditions {
+			condition.ObservedGeneration = app.Generation
+			setAppCondition(&app, condition)
+		}
 		return r.Status().Update(ctx, &app)
 	})
+}
+
+func runtimeStatusForApp(app *platformv1alpha1.App, deployment *appsv1.Deployment) appRuntimeStatus {
+	if deploymentProgressDeadlineExceeded(deployment) {
+		return appRuntimeStatus{
+			phase: "Stalled",
+			conditions: []metav1.Condition{
+				{Type: "Ready", Status: metav1.ConditionFalse, Reason: "ProgressDeadlineExceeded", Message: "Deployment exceeded its progress deadline"},
+				{Type: "Reconciling", Status: metav1.ConditionFalse, Reason: "ProgressDeadlineExceeded", Message: "Deployment rollout is stalled"},
+				{Type: "Stalled", Status: metav1.ConditionTrue, Reason: "ProgressDeadlineExceeded", Message: "Deployment exceeded its progress deadline"},
+			},
+		}
+	}
+
+	desiredReplicas := replicasForApp(app)
+	if deployment.Status.AvailableReplicas >= desiredReplicas {
+		return appRuntimeStatus{
+			phase: "Ready",
+			conditions: []metav1.Condition{
+				{Type: "Ready", Status: metav1.ConditionTrue, Reason: "Available", Message: "Deployment has the desired number of available replicas"},
+				{Type: "Reconciling", Status: metav1.ConditionFalse, Reason: "Available", Message: "Deployment rollout is complete"},
+				{Type: "Stalled", Status: metav1.ConditionFalse, Reason: "Available", Message: "Deployment is not stalled"},
+			},
+		}
+	}
+
+	return appRuntimeStatus{
+		phase: "Reconciling",
+		conditions: []metav1.Condition{
+			{Type: "Ready", Status: metav1.ConditionFalse, Reason: "WaitingForDeployment", Message: "Deployment does not have the desired number of available replicas"},
+			{Type: "Reconciling", Status: metav1.ConditionTrue, Reason: "WaitingForDeployment", Message: "Deployment rollout is still progressing"},
+			{Type: "Stalled", Status: metav1.ConditionFalse, Reason: "WaitingForDeployment", Message: "Deployment is not stalled"},
+		},
+	}
+}
+
+func deploymentProgressDeadlineExceeded(deployment *appsv1.Deployment) bool {
+	for _, condition := range deployment.Status.Conditions {
+		if condition.Type == appsv1.DeploymentProgressing &&
+			condition.Status == corev1.ConditionFalse &&
+			condition.Reason == "ProgressDeadlineExceeded" {
+			return true
+		}
+	}
+	return false
 }
 
 func labelsForApp(app *platformv1alpha1.App) map[string]string {

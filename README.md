@@ -188,6 +188,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Add scripts and docs for HTTP routing through ingress-nginx in kind
 - Add `spec.tls` support plus cert-manager-compatible Ingress TLS reconciliation
 - Add scripts and docs for local HTTPS validation through cert-manager
+- Derive App readiness from generated Deployment availability
 
 ### Next
 
@@ -214,8 +215,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 
 ## 💭 How It Can Be Improved
 
-- Derive Ready status from actual Deployment availability.
-- Report reconciliation errors and stalled conditions.
+- Report reconciliation errors from failed child-resource operations.
 - Remove stale Ingress objects when a hostname is removed.
 - Add health probes, resource requests, limits, secrets, and environment variables to the App API.
 - Add end-to-end tests on a real cluster.

@@ -516,6 +516,28 @@ Review checkpoint:
 
 Repo entry point: `infra/kind/README.md`.
 
+### Milestone 1.9: App Readiness From Deployment Health
+
+Target: half day.
+
+Deliverables:
+
+- Controller reads generated Deployment status before updating `App.status`.
+- `Ready=True` only when available replicas meet the desired replica count.
+- `Reconciling=True` while the Deployment is still rolling out.
+- `Stalled=True` when Kubernetes reports `ProgressDeadlineExceeded`.
+- kind validation scripts assert `App/demo-api` reaches `phase=Ready` after rollout.
+
+Why it exists: production platforms must report actual runtime health, not just successful object creation. Creating a Deployment is only the start; the real user question is whether the app has available Pods serving traffic.
+
+Review checkpoint:
+
+- Why can a Deployment exist while the app is still unavailable?
+- Which Deployment status fields are useful for platform readiness?
+- Why should status be derived from observed state instead of desired state?
+
+Repo entry point: `platform/app-controller/internal/controller/app_controller.go`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.

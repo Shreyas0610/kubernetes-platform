@@ -29,6 +29,23 @@ echo "Validating generated workload."
 kubectl get app demo-api -o wide
 kubectl get deployment demo-api
 kubectl rollout status deployment/demo-api --timeout=120s
+
+for attempt in $(seq 1 30); do
+  phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
+  ready_status="$(kubectl get app demo-api -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+  if [ "${phase}" = "Ready" ] && [ "${ready_status}" = "True" ]; then
+    echo "App/demo-api status validated: phase=Ready, Ready=True."
+    break
+  fi
+  if [ "${attempt}" = "30" ]; then
+    echo "App/demo-api did not report Ready after the Deployment rolled out." >&2
+    kubectl get app demo-api -o yaml >&2
+    exit 1
+  fi
+  echo "Waiting for App/demo-api status to report Ready (${attempt}/30)."
+  sleep 2
+done
+
 kubectl get service demo-api
 kubectl get ingress demo-api
 
