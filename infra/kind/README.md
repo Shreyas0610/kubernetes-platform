@@ -92,6 +92,8 @@ curl -H 'Host: demo.local' http://localhost:8080/
 
 An `Ingress` object is only desired routing state. The ingress controller is the running proxy that watches those objects and implements the routing rules. Without ingress-nginx, `Ingress/demo-api` can exist but no HTTP traffic will be routed.
 
+The sample app defaults to `spec.tls: true` for the HTTPS milestone. The HTTP validation script temporarily patches `spec.tls: false` so it can validate plain HTTP without ingress-nginx redirecting to HTTPS.
+
 ### Local HTTPS Through cert-manager
 
 After HTTP routing works, install cert-manager and validate local HTTPS routing:

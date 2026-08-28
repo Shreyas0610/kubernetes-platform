@@ -54,8 +54,7 @@ kubectl rollout status deployment/app-controller-controller-manager \
   --timeout=120s
 
 kubectl apply -f "${SAMPLE}"
-kubectl patch app demo-api --type merge -p '{"spec":{"replicas":1}}'
-kubectl apply -f "${SAMPLE}"
+kubectl patch app demo-api --type merge -p '{"spec":{"replicas":1,"tls":false}}'
 
 kubectl rollout status deployment/demo-api --timeout=120s
 kubectl get service demo-api
