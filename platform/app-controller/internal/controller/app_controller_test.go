@@ -311,6 +311,8 @@ var _ = Describe("App Controller", func() {
 					Spec: platformv1alpha1.AppSpec{
 						Image: "nginx:1.27",
 						Port:  80,
+						Host:  "test.local",
+						TLS:   true,
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
@@ -337,6 +339,11 @@ var _ = Describe("App Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			By("updating App status with an HTTPS URL")
+			reconciled := &platformv1alpha1.App{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, reconciled)).To(Succeed())
+			Expect(reconciled.Status.URL).To(Equal("https://test.local"))
 		})
 	})
 })

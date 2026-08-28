@@ -26,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -140,34 +142,45 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	app.Status.Phase = "Ready"
-	app.Status.URL = urlForApp(&app)
-	setAppCondition(&app, metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionTrue,
-		Reason:             "Reconciled",
-		Message:            "App runtime resources are reconciled",
-		ObservedGeneration: app.Generation,
-	})
-	setAppCondition(&app, metav1.Condition{
-		Type:               "Reconciling",
-		Status:             metav1.ConditionFalse,
-		Reason:             "Reconciled",
-		Message:            "Reconciliation completed",
-		ObservedGeneration: app.Generation,
-	})
-	setAppCondition(&app, metav1.Condition{
-		Type:               "Stalled",
-		Status:             metav1.ConditionFalse,
-		Reason:             "Reconciled",
-		Message:            "No reconciliation error",
-		ObservedGeneration: app.Generation,
-	})
-	if err := r.Status().Update(ctx, &app); err != nil {
+	if err := r.updateReadyStatus(ctx, req.NamespacedName); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *AppReconciler) updateReadyStatus(ctx context.Context, name types.NamespacedName) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var app platformv1alpha1.App
+		if err := r.Get(ctx, name, &app); err != nil {
+			return err
+		}
+
+		app.Status.Phase = "Ready"
+		app.Status.URL = urlForApp(&app)
+		setAppCondition(&app, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			Reason:             "Reconciled",
+			Message:            "App runtime resources are reconciled",
+			ObservedGeneration: app.Generation,
+		})
+		setAppCondition(&app, metav1.Condition{
+			Type:               "Reconciling",
+			Status:             metav1.ConditionFalse,
+			Reason:             "Reconciled",
+			Message:            "Reconciliation completed",
+			ObservedGeneration: app.Generation,
+		})
+		setAppCondition(&app, metav1.Condition{
+			Type:               "Stalled",
+			Status:             metav1.ConditionFalse,
+			Reason:             "Reconciled",
+			Message:            "No reconciliation error",
+			ObservedGeneration: app.Generation,
+		})
+		return r.Status().Update(ctx, &app)
+	})
 }
 
 func labelsForApp(app *platformv1alpha1.App) map[string]string {
