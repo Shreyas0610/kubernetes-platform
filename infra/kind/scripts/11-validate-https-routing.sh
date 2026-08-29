@@ -71,7 +71,18 @@ kubectl apply -f "${SAMPLE}"
 kubectl rollout status deployment/demo-api --timeout=120s
 kubectl wait certificate demo-api-tls --for=condition=Ready --timeout=180s
 kubectl get secret demo-api-tls >/dev/null
-kubectl get configmap demo-api-env >/dev/null
+
+for attempt in $(seq 1 30); do
+  if kubectl get configmap demo-api-env >/dev/null 2>&1; then
+    break
+  fi
+  if [ "${attempt}" = "30" ]; then
+    echo "ConfigMap/demo-api-env was not created." >&2
+    exit 1
+  fi
+  echo "Waiting for ConfigMap/demo-api-env (${attempt}/30)."
+  sleep 2
+done
 
 generated_env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
 if [ "${generated_env_ref}" != "demo-api-env" ]; then
