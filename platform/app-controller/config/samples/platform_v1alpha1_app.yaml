@@ -11,3 +11,6 @@ spec:
   replicas: 2
   host: demo.local
   tls: true
+  env:
+    LOG_LEVEL: debug
+    REGION: local

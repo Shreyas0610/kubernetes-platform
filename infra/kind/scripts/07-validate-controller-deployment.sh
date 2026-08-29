@@ -30,6 +30,19 @@ kubectl get app demo-api -o wide
 kubectl get deployment demo-api
 kubectl rollout status deployment/demo-api --timeout=120s
 
+kubectl get configmap demo-api-env >/dev/null
+log_level="$(kubectl get configmap demo-api-env -o jsonpath='{.data.LOG_LEVEL}')"
+if [ "${log_level}" != "debug" ]; then
+  echo "ConfigMap/demo-api-env LOG_LEVEL mismatch: expected 'debug', got '${log_level}'." >&2
+  exit 1
+fi
+
+generated_env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
+if [ "${generated_env_ref}" != "demo-api-env" ]; then
+  echo "Deployment/demo-api envFrom mismatch: expected generated ConfigMap 'demo-api-env', got '${generated_env_ref}'." >&2
+  exit 1
+fi
+
 for attempt in $(seq 1 30); do
   phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
   ready_status="$(kubectl get app demo-api -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
