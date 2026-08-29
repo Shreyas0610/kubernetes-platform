@@ -39,12 +39,16 @@ spec:
   port: 8080
   replicas: 2
   host: example.local
+  env:
+    LOG_LEVEL: info
+  envFromSecret: example-app-secrets
 ~~~
 
 The controller reconciles that desired state into:
 
 - A Deployment for application pods
 - A ClusterIP Service for stable networking
+- A ConfigMap for non-sensitive runtime configuration
 - An optional Ingress for HTTP routing
 - Owner references for lifecycle management
 - Platform labels and selectors
@@ -73,6 +77,8 @@ The controller includes focused unit tests and an envtest-backed reconciliation 
 - Platform labels
 - Default and explicit replica counts
 - Deployment generation
+- Runtime configuration injection
+- ConfigMap generation
 - Service generation
 - Ingress generation
 - Owner references
@@ -100,7 +106,7 @@ The target platform will add image builds, HTTPS, GitOps, observability, and ten
 
 I began below the managed Kubernetes layer by documenting how Linux nodes, containerd, kubelet, kubeadm, certificates, networking prerequisites, and etcd fit together.
 
-Next, I used Kubebuilder to define a domain-specific **App** resource. Instead of asking developers to manage several Kubernetes objects, the resource captures only the application intent: image, port, replica count, and optional hostname.
+Next, I used Kubebuilder to define a domain-specific **App** resource. Instead of asking developers to manage several Kubernetes objects, the resource captures only the application intent: image, port, replica count, optional hostname, and runtime configuration.
 
 I then implemented a controller with **CreateOrPatch**, owner references, and explicit RBAC rules. The controller continuously moves the cluster toward the declared state, which makes the platform declarative and self-healing rather than a collection of deployment scripts.
 
@@ -189,6 +195,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - Add `spec.tls` support plus cert-manager-compatible Ingress TLS reconciliation
 - Add scripts and docs for local HTTPS validation through cert-manager
 - Derive App readiness from generated Deployment availability
+- Add App runtime configuration through generated ConfigMaps and Secret references
 
 ### Next
 
@@ -207,6 +214,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 - How containerd and kubelet communicate through the CRI.
 - How CRDs extend the Kubernetes API with domain-specific resources.
 - How controllers reconcile observed state toward desired state.
+- How ConfigMaps and Secrets feed runtime configuration into Pods.
 - How ingress-nginx and cert-manager work together to expose HTTPS applications.
 - Why owner references, idempotency, RBAC, and status conditions matter.
 - How to test controllers without a full production cluster.
@@ -217,7 +225,7 @@ The self-managed cluster has not yet been fully executed end to end. The current
 
 - Report reconciliation errors from failed child-resource operations.
 - Remove stale Ingress objects when a hostname is removed.
-- Add health probes, resource requests, limits, secrets, and environment variables to the App API.
+- Add health probes, resource requests, and limits to the App API.
 - Add end-to-end tests on a real cluster.
 - Publish a complete deployment demo and architecture screenshots.
 - Measure reconciliation latency, rollout time, and recovery behavior.

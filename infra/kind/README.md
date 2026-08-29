@@ -141,10 +141,13 @@ Last verified local runtime path:
 The sample creates an `App` named `demo-api`. The controller should reconcile:
 
 - `Deployment/demo-api`
+- `ConfigMap/demo-api-env`
 - `Service/demo-api`
 - `Ingress/demo-api`
 - `Certificate/demo-api-tls` and `Secret/demo-api-tls` when cert-manager is installed
 - `App/demo-api` status conditions
+
+`spec.env` is stored in the generated ConfigMap and loaded into the app container with `envFrom`. Use this only for non-sensitive values. Sensitive values should live in an existing Secret and be referenced with `spec.envFromSecret`; the secret values should not be copied into the `App` resource.
 
 The controller reports `Ready=True` only after the generated Deployment has the desired number of available replicas. Before that, the app should be `Reconciling`; if Kubernetes reports `ProgressDeadlineExceeded`, the app should become `Stalled`.
 
@@ -157,7 +160,7 @@ kubectl get app demo-api -o yaml
 Inspect the generated workload:
 
 ```bash
-kubectl get deployment,service,ingress demo-api
+kubectl get deployment,configmap,service,ingress demo-api
 kubectl describe app demo-api
 ```
 

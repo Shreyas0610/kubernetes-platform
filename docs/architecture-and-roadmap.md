@@ -538,6 +538,29 @@ Review checkpoint:
 
 Repo entry point: `platform/app-controller/internal/controller/app_controller.go`.
 
+### Milestone 1.10: App Runtime Configuration
+
+Target: half day.
+
+Deliverables:
+
+- `App.spec.env` stores non-sensitive runtime settings.
+- Controller reconciles `ConfigMap/<app-name>-env` from `spec.env`.
+- `App.spec.envFromConfigMap` references an existing ConfigMap.
+- `App.spec.envFromSecret` references an existing Secret without copying secret values into the CRD.
+- Generated Deployments load those sources through container `envFrom`.
+- kind validation scripts assert generated ConfigMap and Deployment env wiring.
+
+Why it exists: real applications need configuration that changes between environments. A platform should separate plain configuration from sensitive values and should inject both into workloads through standard Kubernetes primitives.
+
+Review checkpoint:
+
+- Why should secret values not be stored directly in the `App` CRD?
+- What is the difference between `env`, `envFrom`, ConfigMap, and Secret?
+- What happens to running Pods when a referenced ConfigMap or Secret changes?
+
+Repo entry point: `platform/app-controller/internal/controller/app_controller.go`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.
