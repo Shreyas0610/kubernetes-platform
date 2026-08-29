@@ -120,6 +120,85 @@ func TestDeploymentForAppBuildsExpectedDeployment(t *testing.T) {
 	}
 }
 
+func TestDeploymentForAppInjectsRuntimeConfiguration(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image:            "nginx:1.27",
+			Port:             80,
+			Env:              map[string]string{"LOG_LEVEL": "debug"},
+			EnvFromConfigMap: "shared-app-config",
+			EnvFromSecret:    "demo-api-secrets",
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add apps scheme: %v", err)
+	}
+
+	deployment, err := deploymentForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("deploymentForApp returned error: %v", err)
+	}
+
+	envFrom := deployment.Spec.Template.Spec.Containers[0].EnvFrom
+	if len(envFrom) != 3 {
+		t.Fatalf("expected three envFrom sources, got %#v", envFrom)
+	}
+	if envFrom[0].ConfigMapRef.Name != "demo-api-env" {
+		t.Fatalf("expected generated ConfigMap source demo-api-env, got %#v", envFrom[0])
+	}
+	if envFrom[1].ConfigMapRef.Name != "shared-app-config" {
+		t.Fatalf("expected external ConfigMap source shared-app-config, got %#v", envFrom[1])
+	}
+	if envFrom[2].SecretRef.Name != "demo-api-secrets" {
+		t.Fatalf("expected Secret source demo-api-secrets, got %#v", envFrom[2])
+	}
+}
+
+func TestConfigMapForAppBuildsExpectedConfigMap(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Env: map[string]string{
+				"LOG_LEVEL": "debug",
+				"REGION":    "local",
+			},
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add core scheme: %v", err)
+	}
+
+	configMap, err := configMapForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("configMapForApp returned error: %v", err)
+	}
+
+	if configMap.Name != "demo-api-env" {
+		t.Fatalf("expected ConfigMap name demo-api-env, got %q", configMap.Name)
+	}
+	if configMap.Data["LOG_LEVEL"] != "debug" || configMap.Data["REGION"] != "local" {
+		t.Fatalf("unexpected ConfigMap data: %#v", configMap.Data)
+	}
+	if len(configMap.OwnerReferences) != 1 || configMap.OwnerReferences[0].Name != "demo-api" {
+		t.Fatalf("expected owner reference to demo-api, got %#v", configMap.OwnerReferences)
+	}
+}
+
 func TestServiceForAppBuildsExpectedService(t *testing.T) {
 	app := &platformv1alpha1.App{
 		ObjectMeta: metav1.ObjectMeta{

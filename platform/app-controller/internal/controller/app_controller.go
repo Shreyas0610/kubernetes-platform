@@ -58,7 +58,7 @@ type AppReconciler struct {
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=platform.sarige.dev,resources=apps/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -100,6 +100,28 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	})
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if len(app.Spec.Env) > 0 {
+		desiredConfigMap, err := configMapForApp(&app, r.Scheme)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      desiredConfigMap.Name,
+				Namespace: desiredConfigMap.Namespace,
+			},
+		}
+		_, err = controllerutil.CreateOrPatch(ctx, r.Client, configMap, func() error {
+			configMap.Labels = desiredConfigMap.Labels
+			configMap.OwnerReferences = desiredConfigMap.OwnerReferences
+			configMap.Data = desiredConfigMap.Data
+			return nil
+		})
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	desiredService, err := serviceForApp(&app, r.Scheme)
@@ -239,6 +261,7 @@ func replicasForApp(app *platformv1alpha1.App) int32 {
 func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv1.Deployment, error) {
 	labels := labelsForApp(app)
 	replicas := replicasForApp(app)
+	envFrom := envFromSourcesForApp(app)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.Name,
@@ -252,8 +275,9 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:  app.Name,
-						Image: app.Spec.Image,
+						Name:    app.Name,
+						Image:   app.Spec.Image,
+						EnvFrom: envFrom,
 						Ports: []corev1.ContainerPort{{
 							Name:          "http",
 							ContainerPort: app.Spec.Port,
@@ -267,6 +291,48 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 		return nil, err
 	}
 	return deployment, nil
+}
+
+func envFromSourcesForApp(app *platformv1alpha1.App) []corev1.EnvFromSource {
+	envFrom := []corev1.EnvFromSource{}
+	if len(app.Spec.Env) > 0 {
+		envFrom = append(envFrom, corev1.EnvFromSource{
+			ConfigMapRef: &corev1.ConfigMapEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: app.Name + "-env"},
+			},
+		})
+	}
+	if app.Spec.EnvFromConfigMap != "" {
+		envFrom = append(envFrom, corev1.EnvFromSource{
+			ConfigMapRef: &corev1.ConfigMapEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: app.Spec.EnvFromConfigMap},
+			},
+		})
+	}
+	if app.Spec.EnvFromSecret != "" {
+		envFrom = append(envFrom, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: app.Spec.EnvFromSecret},
+			},
+		})
+	}
+	return envFrom
+}
+
+func configMapForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.ConfigMap, error) {
+	labels := labelsForApp(app)
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Name + "-env",
+			Namespace: app.Namespace,
+			Labels:    labels,
+		},
+		Data: app.Spec.Env,
+	}
+	if err := controllerutil.SetControllerReference(app, configMap, scheme); err != nil {
+		return nil, err
+	}
+	return configMap, nil
 }
 
 func serviceForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*corev1.Service, error) {
