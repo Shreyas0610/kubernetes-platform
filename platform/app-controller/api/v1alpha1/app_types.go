@@ -46,6 +46,18 @@ type AppSpec struct {
 	// TLS enables HTTPS routing for Host through cert-manager-managed Ingress TLS.
 	// +optional
 	TLS bool `json:"tls,omitempty"`
+
+	// Env is non-sensitive runtime configuration stored in a generated ConfigMap.
+	// +optional
+	Env map[string]string `json:"env,omitempty"`
+
+	// EnvFromConfigMap is the name of an existing ConfigMap loaded into the app container.
+	// +optional
+	EnvFromConfigMap string `json:"envFromConfigMap,omitempty"`
+
+	// EnvFromSecret is the name of an existing Secret loaded into the app container.
+	// +optional
+	EnvFromSecret string `json:"envFromSecret,omitempty"`
 }
 
 // AppStatus defines the observed state of App.

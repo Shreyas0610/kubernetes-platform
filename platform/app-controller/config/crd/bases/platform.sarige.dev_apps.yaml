@@ -39,6 +39,20 @@ spec:
           spec:
             description: spec defines the desired state of App
             properties:
+              env:
+                additionalProperties:
+                  type: string
+                description: Env is non-sensitive runtime configuration stored in
+                  a generated ConfigMap.
+                type: object
+              envFromConfigMap:
+                description: EnvFromConfigMap is the name of an existing ConfigMap
+                  loaded into the app container.
+                type: string
+              envFromSecret:
+                description: EnvFromSecret is the name of an existing Secret loaded
+                  into the app container.
+                type: string
               host:
                 description: Host is the optional HTTP hostname exposed through Ingress.
                 type: string
