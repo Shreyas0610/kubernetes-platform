@@ -90,6 +90,18 @@ if [ "${generated_env_ref}" != "demo-api-env" ]; then
   exit 1
 fi
 
+readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
+if [ "${readiness_path}" != "/" ]; then
+  echo "Deployment/demo-api readiness path mismatch: expected '/', got '${readiness_path}'." >&2
+  exit 1
+fi
+
+cpu_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.cpu}')"
+if [ "${cpu_limit}" != "250m" ]; then
+  echo "Deployment/demo-api cpu limit mismatch: expected '250m', got '${cpu_limit}'." >&2
+  exit 1
+fi
+
 for attempt in $(seq 1 30); do
   phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
   ready_status="$(kubectl get app demo-api -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"

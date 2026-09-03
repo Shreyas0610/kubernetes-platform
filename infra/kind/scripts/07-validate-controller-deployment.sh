@@ -53,6 +53,30 @@ if [ "${generated_env_ref}" != "demo-api-env" ]; then
   exit 1
 fi
 
+readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
+if [ "${readiness_path}" != "/" ]; then
+  echo "Deployment/demo-api readiness path mismatch: expected '/', got '${readiness_path}'." >&2
+  exit 1
+fi
+
+liveness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].livenessProbe.httpGet.path}')"
+if [ "${liveness_path}" != "/" ]; then
+  echo "Deployment/demo-api liveness path mismatch: expected '/', got '${liveness_path}'." >&2
+  exit 1
+fi
+
+cpu_request="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.requests.cpu}')"
+if [ "${cpu_request}" != "50m" ]; then
+  echo "Deployment/demo-api cpu request mismatch: expected '50m', got '${cpu_request}'." >&2
+  exit 1
+fi
+
+memory_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}')"
+if [ "${memory_limit}" != "256Mi" ]; then
+  echo "Deployment/demo-api memory limit mismatch: expected '256Mi', got '${memory_limit}'." >&2
+  exit 1
+fi
+
 for attempt in $(seq 1 30); do
   phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
   ready_status="$(kubectl get app demo-api -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
