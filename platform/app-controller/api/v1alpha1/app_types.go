@@ -17,9 +17,18 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+// AppHealthCheck defines HTTP health probe settings for an app container.
+type AppHealthCheck struct {
+	// Path is the HTTP path used for readiness and liveness checks.
+	// +kubebuilder:validation:Pattern=`^/.*`
+	// +optional
+	Path string `json:"path,omitempty"`
+}
 
 // AppSpec defines the desired state of App.
 type AppSpec struct {
@@ -58,6 +67,14 @@ type AppSpec struct {
 	// EnvFromSecret is the name of an existing Secret loaded into the app container.
 	// +optional
 	EnvFromSecret string `json:"envFromSecret,omitempty"`
+
+	// HealthCheck configures HTTP readiness and liveness probes for the app container.
+	// +optional
+	HealthCheck *AppHealthCheck `json:"healthCheck,omitempty"`
+
+	// Resources configures CPU and memory requests and limits for the app container.
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // AppStatus defines the observed state of App.
