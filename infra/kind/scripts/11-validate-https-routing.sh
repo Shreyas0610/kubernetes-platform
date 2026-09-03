@@ -21,6 +21,31 @@ require_command docker
 require_command kind
 require_command kubectl
 
+wait_for_generated_app_config() {
+  for attempt in $(seq 1 30); do
+    local env_ref
+    local readiness_path
+    local cpu_limit
+
+    env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
+    readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
+    cpu_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.cpu}')"
+
+    if [ "${env_ref}" = "demo-api-env" ] &&
+      [ "${readiness_path}" = "/" ] &&
+      [ "${cpu_limit}" = "250m" ]; then
+      return 0
+    fi
+
+    echo "Waiting for Deployment/demo-api generated config (${attempt}/30)."
+    sleep 2
+  done
+
+  echo "Deployment/demo-api did not converge to the expected generated config." >&2
+  kubectl get deployment demo-api -o yaml >&2
+  exit 1
+}
+
 if ! docker info >/dev/null 2>&1; then
   echo "Docker is not running or is not reachable." >&2
   exit 1
@@ -84,23 +109,7 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 
-generated_env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
-if [ "${generated_env_ref}" != "demo-api-env" ]; then
-  echo "Deployment/demo-api envFrom mismatch: expected generated ConfigMap 'demo-api-env', got '${generated_env_ref}'." >&2
-  exit 1
-fi
-
-readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
-if [ "${readiness_path}" != "/" ]; then
-  echo "Deployment/demo-api readiness path mismatch: expected '/', got '${readiness_path}'." >&2
-  exit 1
-fi
-
-cpu_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.cpu}')"
-if [ "${cpu_limit}" != "250m" ]; then
-  echo "Deployment/demo-api cpu limit mismatch: expected '250m', got '${cpu_limit}'." >&2
-  exit 1
-fi
+wait_for_generated_app_config
 
 for attempt in $(seq 1 30); do
   phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"

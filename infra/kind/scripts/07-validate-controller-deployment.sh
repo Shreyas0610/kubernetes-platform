@@ -15,6 +15,37 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
   exit 1
 fi
 
+wait_for_generated_app_config() {
+  for attempt in $(seq 1 30); do
+    local env_ref
+    local readiness_path
+    local liveness_path
+    local cpu_request
+    local memory_limit
+
+    env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
+    readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
+    liveness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].livenessProbe.httpGet.path}')"
+    cpu_request="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.requests.cpu}')"
+    memory_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}')"
+
+    if [ "${env_ref}" = "demo-api-env" ] &&
+      [ "${readiness_path}" = "/" ] &&
+      [ "${liveness_path}" = "/" ] &&
+      [ "${cpu_request}" = "50m" ] &&
+      [ "${memory_limit}" = "256Mi" ]; then
+      return 0
+    fi
+
+    echo "Waiting for Deployment/demo-api generated config (${attempt}/30)."
+    sleep 2
+  done
+
+  echo "Deployment/demo-api did not converge to the expected generated config." >&2
+  kubectl get deployment demo-api -o yaml >&2
+  exit 1
+}
+
 echo "Validating controller Deployment."
 kubectl get deployment app-controller-controller-manager \
   --namespace app-controller-system
@@ -47,35 +78,7 @@ if [ "${log_level}" != "debug" ]; then
   exit 1
 fi
 
-generated_env_ref="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
-if [ "${generated_env_ref}" != "demo-api-env" ]; then
-  echo "Deployment/demo-api envFrom mismatch: expected generated ConfigMap 'demo-api-env', got '${generated_env_ref}'." >&2
-  exit 1
-fi
-
-readiness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}')"
-if [ "${readiness_path}" != "/" ]; then
-  echo "Deployment/demo-api readiness path mismatch: expected '/', got '${readiness_path}'." >&2
-  exit 1
-fi
-
-liveness_path="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].livenessProbe.httpGet.path}')"
-if [ "${liveness_path}" != "/" ]; then
-  echo "Deployment/demo-api liveness path mismatch: expected '/', got '${liveness_path}'." >&2
-  exit 1
-fi
-
-cpu_request="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.requests.cpu}')"
-if [ "${cpu_request}" != "50m" ]; then
-  echo "Deployment/demo-api cpu request mismatch: expected '50m', got '${cpu_request}'." >&2
-  exit 1
-fi
-
-memory_limit="$(kubectl get deployment demo-api -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}')"
-if [ "${memory_limit}" != "256Mi" ]; then
-  echo "Deployment/demo-api memory limit mismatch: expected '256Mi', got '${memory_limit}'." >&2
-  exit 1
-fi
+wait_for_generated_app_config
 
 for attempt in $(seq 1 30); do
   phase="$(kubectl get app demo-api -o jsonpath='{.status.phase}')"
