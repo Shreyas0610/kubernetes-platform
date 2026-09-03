@@ -149,6 +149,10 @@ The sample creates an `App` named `demo-api`. The controller should reconcile:
 
 `spec.env` is stored in the generated ConfigMap and loaded into the app container with `envFrom`. Use this only for non-sensitive values. Sensitive values should live in an existing Secret and be referenced with `spec.envFromSecret`; the secret values should not be copied into the `App` resource.
 
+`spec.healthCheck.path` configures HTTP readiness and liveness probes on the named `http` container port. Readiness controls whether a Pod receives traffic; liveness controls whether kubelet restarts a stuck container. The nginx sample uses `/` because the image does not expose a dedicated `/health` endpoint.
+
+`spec.resources` maps directly to Kubernetes container requests and limits. Requests reserve schedulable capacity; limits cap CPU and memory usage so one app cannot consume the whole node.
+
 The controller reports `Ready=True` only after the generated Deployment has the desired number of available replicas. Before that, the app should be `Reconciling`; if Kubernetes reports `ProgressDeadlineExceeded`, the app should become `Stalled`.
 
 Inspect the app:

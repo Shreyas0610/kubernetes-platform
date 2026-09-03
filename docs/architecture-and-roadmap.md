@@ -561,6 +561,28 @@ Review checkpoint:
 
 Repo entry point: `platform/app-controller/internal/controller/app_controller.go`.
 
+### Milestone 1.11: Health Probes And Resource Controls
+
+Target: half day.
+
+Deliverables:
+
+- `App.spec.healthCheck.path` configures HTTP readiness and liveness probes.
+- Probes target the generated container's named `http` port.
+- `App.spec.resources.requests` and `App.spec.resources.limits` map to container resources.
+- Sample App includes local probe and resource settings.
+- kind validation scripts assert generated probe and resource fields.
+
+Why it exists: a production platform needs to protect both traffic routing and cluster capacity. Readiness probes keep traffic away from unavailable Pods, liveness probes restart stuck containers, requests guide scheduling, and limits reduce noisy-neighbor risk.
+
+Review checkpoint:
+
+- Why are readiness and liveness probes different?
+- Why should probes use a named port instead of duplicating a number?
+- What happens when requests are too low or limits are too tight?
+
+Repo entry point: `platform/app-controller/internal/controller/app_controller.go`.
+
 ### Milestone 2: kubeadm Cluster Foundation
 
 Target: 2-3 days.
