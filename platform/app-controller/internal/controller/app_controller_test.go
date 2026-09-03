@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -159,6 +160,100 @@ func TestDeploymentForAppInjectsRuntimeConfiguration(t *testing.T) {
 	}
 	if envFrom[2].SecretRef.Name != "demo-api-secrets" {
 		t.Fatalf("expected Secret source demo-api-secrets, got %#v", envFrom[2])
+	}
+}
+
+func TestDeploymentForAppConfiguresHTTPHealthProbes(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image: "nginx:1.27",
+			Port:  8080,
+			HealthCheck: &platformv1alpha1.AppHealthCheck{
+				Path: "/health",
+			},
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add apps scheme: %v", err)
+	}
+
+	deployment, err := deploymentForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("deploymentForApp returned error: %v", err)
+	}
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	if container.ReadinessProbe == nil {
+		t.Fatal("expected readiness probe")
+	}
+	if container.ReadinessProbe.HTTPGet.Path != "/health" {
+		t.Fatalf("expected readiness path /health, got %q", container.ReadinessProbe.HTTPGet.Path)
+	}
+	if container.ReadinessProbe.HTTPGet.Port.StrVal != "http" {
+		t.Fatalf("expected readiness probe to target named http port, got %#v", container.ReadinessProbe.HTTPGet.Port)
+	}
+	if container.LivenessProbe == nil {
+		t.Fatal("expected liveness probe")
+	}
+	if container.LivenessProbe.HTTPGet.Path != "/health" {
+		t.Fatalf("expected liveness path /health, got %q", container.LivenessProbe.HTTPGet.Path)
+	}
+}
+
+func TestDeploymentForAppConfiguresResourceRequirements(t *testing.T) {
+	app := &platformv1alpha1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-api",
+			Namespace: "default",
+		},
+		Spec: platformv1alpha1.AppSpec{
+			Image: "nginx:1.27",
+			Port:  80,
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				},
+			},
+		},
+	}
+	scheme := runtime.NewScheme()
+	if err := platformv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add platform scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add apps scheme: %v", err)
+	}
+
+	deployment, err := deploymentForApp(app, scheme)
+	if err != nil {
+		t.Fatalf("deploymentForApp returned error: %v", err)
+	}
+
+	resources := deployment.Spec.Template.Spec.Containers[0].Resources
+	if resources.Requests.Cpu().String() != "100m" {
+		t.Fatalf("expected cpu request 100m, got %s", resources.Requests.Cpu().String())
+	}
+	if resources.Requests.Memory().String() != "128Mi" {
+		t.Fatalf("expected memory request 128Mi, got %s", resources.Requests.Memory().String())
+	}
+	if resources.Limits.Cpu().String() != "500m" {
+		t.Fatalf("expected cpu limit 500m, got %s", resources.Limits.Cpu().String())
+	}
+	if resources.Limits.Memory().String() != "512Mi" {
+		t.Fatalf("expected memory limit 512Mi, got %s", resources.Limits.Memory().String())
 	}
 }
 

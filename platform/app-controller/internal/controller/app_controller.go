@@ -262,6 +262,7 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 	labels := labelsForApp(app)
 	replicas := replicasForApp(app)
 	envFrom := envFromSourcesForApp(app)
+	healthProbe := healthProbeForApp(app)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.Name,
@@ -275,9 +276,12 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:    app.Name,
-						Image:   app.Spec.Image,
-						EnvFrom: envFrom,
+						Name:           app.Name,
+						Image:          app.Spec.Image,
+						EnvFrom:        envFrom,
+						ReadinessProbe: healthProbe,
+						LivenessProbe:  healthProbe.DeepCopy(),
+						Resources:      app.Spec.Resources,
 						Ports: []corev1.ContainerPort{{
 							Name:          "http",
 							ContainerPort: app.Spec.Port,
@@ -291,6 +295,24 @@ func deploymentForApp(app *platformv1alpha1.App, scheme *runtime.Scheme) (*appsv
 		return nil, err
 	}
 	return deployment, nil
+}
+
+func healthProbeForApp(app *platformv1alpha1.App) *corev1.Probe {
+	if app.Spec.HealthCheck == nil || app.Spec.HealthCheck.Path == "" {
+		return nil
+	}
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: app.Spec.HealthCheck.Path,
+				Port: intstr.FromString("http"),
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      2,
+		FailureThreshold:    3,
+	}
 }
 
 func envFromSourcesForApp(app *platformv1alpha1.App) []corev1.EnvFromSource {
